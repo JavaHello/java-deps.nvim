@@ -21,7 +21,7 @@ local function parse_result(result, depth, hierarchy, parent)
 
 			local node = {
 				entryKind = value.entryKind,
-				mateData = value.mateData,
+				metaData = value.metaData,
 				handlerIdentifier = value.handlerIdentifier,
 				kind = value.kind,
 				uri = value.uri,

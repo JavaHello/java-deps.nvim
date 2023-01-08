@@ -44,15 +44,15 @@ local function setup_global_autocmd()
 	})
 end
 
-local function setup_buffer_autocmd(buf)
+local function setup_buffer_autocmd()
 	if config.options.auto_preview then
 		vim.api.nvim_create_autocmd("CursorHold", {
-			buffer = buf,
+			buffer = 0,
 			callback = require("java-deps.preview").show,
 		})
 	else
 		vim.api.nvim_create_autocmd("CursorMoved", {
-			buffer = buf,
+			buffer = 0,
 			callback = require("java-deps.preview").close,
 		})
 	end
@@ -244,6 +244,8 @@ local function setup_keymaps(bufnr)
 	map(config.options.keymaps.open_file, function()
 		M._set_folded_or_open(true)
 	end)
+	-- preview symbol
+	map(config.options.keymaps.toggle_preview, require("java-deps.preview").toggle)
 	-- fold selection
 	map(config.options.keymaps.fold, function()
 		M._set_folded(true)
@@ -282,7 +284,7 @@ local function handler(response)
 	})
 
 	setup_keymaps(M.view.bufnr)
-	setup_buffer_autocmd(M.state.code_buf)
+	setup_buffer_autocmd()
 
 	local items = parser.parse(response)
 

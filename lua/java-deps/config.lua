@@ -9,6 +9,8 @@ local M = {
 		relative_width = true,
 		show_numbers = false,
 		show_relative_numbers = false,
+		preview_bg_highlight = "Pmenu",
+		winblend = 0,
 		request_timeout = 3000,
 		autofold_depth = 0,
 		fold_markers = { "", "" },
@@ -19,6 +21,7 @@ local M = {
 			open_file = "o",
 			close = { "<Esc>", "q" },
 			show_help = "?",
+			toggle_preview = "K",
 			fold = "h",
 			unfold = "l",
 			fold_all = "W",
@@ -48,6 +51,9 @@ M.setup = function(config)
 	end
 end
 
+function M.has_numbers()
+	return M.options.show_numbers or M.options.show_relative_numbers
+end
 local function has_value(tab, val)
 	for _, value in ipairs(tab) do
 		if value == val then

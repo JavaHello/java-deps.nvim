@@ -52,7 +52,7 @@ end
 
 local function get_hovered_node()
 	local hovered_line = vim.api.nvim_win_get_cursor(jd.view.winnr)[1]
-	local node = jd.state.outline_items[hovered_line]
+	local node = jd.state.flattened_outline_items[hovered_line]
 	return node
 end
 
@@ -92,11 +92,9 @@ end
 
 local function get_hover_params(node, winnr)
 	local bufnr = vim.api.nvim_win_get_buf(winnr)
-	local uri = vim.uri_from_bufnr(bufnr)
-
+	-- local uri = vim.uri_from_bufnr(bufnr)
 	return {
-		textDocument = { uri = uri },
-		position = { line = node.line, character = node.character },
+		node = node,
 		bufnr = bufnr,
 	}
 end
@@ -111,37 +109,54 @@ local function update_hover()
 		return
 	end
 
-	local provider = _G._java_deps_outline_current_provider
-	local params = get_hover_params(node, jd.state.code_win)
+	local content
+	if node.metaData and node.metaData["maven.groupId"] then
+		content = "```xml\n<dependency>\n"
+			.. "\t<groupId>"
+			.. node.metaData["maven.groupId"]
+			.. "</groupId>\n"
+			.. "\t<artifactId>"
+			.. node.metaData["maven.artifactId"]
+			.. "</artifactId>\n"
+			.. "\t<version>"
+			.. node.metaData["maven.version"]
+			.. "</version>\n"
 
-	provider.hover_info(params.bufnr, params, function(err, result)
-		if err then
-			print(vim.inspect(err))
+		if node.metaData["maven.scope"] then
+			content = content .. "\t<scope>" .. node.metaData["maven.scope"] .. "</scope>\n"
 		end
-		local markdown_lines = {}
-		if result ~= nil then
-			markdown_lines = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
+		if node.metaData["maven.optionaldependency"] then
+			content = content .. "\t<options>" .. node.metaData["maven.optionaldependency"] .. "</options>\n"
 		end
-		markdown_lines = vim.lsp.util.trim_empty_lines(markdown_lines)
-		if vim.tbl_isempty(markdown_lines) then
-			markdown_lines = { "###No info available!" }
-		end
+		content = content .. "</dependency>\n```"
+	else
+		return
+	end
 
-		markdown_lines = vim.lsp.util.stylize_markdown(state.hover_buf, markdown_lines, {})
+	local mdstring = {
+		{ kind = "markdown", value = content },
+		{ kind = "markdown", value = "[" .. node.name .. "](" .. node.path .. ")" },
+	}
+	local markdown_lines = vim.lsp.util.convert_input_to_markdown_lines(mdstring)
+	markdown_lines = vim.lsp.util.trim_empty_lines(markdown_lines)
+	if vim.tbl_isempty(markdown_lines) then
+		markdown_lines = { "###No info available!" }
+	end
 
-		if state.hover_buf ~= nil then
-			vim.api.nvim_buf_set_lines(state.hover_buf, 0, -1, 0, markdown_lines)
-		end
-	end)
+	markdown_lines = vim.lsp.util.stylize_markdown(state.hover_buf, markdown_lines, {})
+
+	if state.hover_buf ~= nil then
+		vim.api.nvim_buf_set_lines(state.hover_buf, 0, -1, 0, markdown_lines)
+	end
 end
 
 local function setup_hover_buf()
 	if not has_code_win() then
 		return
 	end
-	local code_buf = vim.api.nvim_win_get_buf(jd.state.code_win)
-	local ft = vim.api.nvim_buf_get_option(code_buf, "filetype")
-	vim.api.nvim_buf_set_option(state.hover_buf, "syntax", ft)
+	-- local code_buf = vim.api.nvim_win_get_buf(jd.state.code_win)
+	-- local ft = vim.api.nvim_buf_get_option(code_buf, "filetype")
+	-- vim.api.nvim_buf_set_option(state.hover_buf, "syntax", "xml")
 	vim.api.nvim_buf_set_option(state.hover_buf, "bufhidden", "delete")
 	vim.api.nvim_win_set_option(state.hover_win, "wrap", true)
 	vim.api.nvim_win_set_option(state.hover_win, "cursorline", false)
@@ -150,10 +165,10 @@ end
 
 local function set_bg_hl()
 	local winhi = "Normal:" .. config.options.preview_bg_highlight
-	vim.api.nvim_win_set_option(state.preview_win, "winhighlight", winhi)
+	-- vim.api.nvim_win_set_option(state.preview_win, "winhighlight", winhi)
 	vim.api.nvim_win_set_option(state.hover_win, "winhighlight", winhi)
 	local winblend = config.options.winblend
-	vim.api.nvim_win_set_option(state.preview_win, "winblend", winblend)
+	-- vim.api.nvim_win_set_option(state.preview_win, "winblend", winblend)
 	vim.api.nvim_win_set_option(state.hover_win, "winblend", winblend)
 end
 
@@ -213,7 +228,7 @@ function M.show()
 		return
 	end
 
-	show_preview()
+	-- show_preview()
 	show_hover()
 	set_bg_hl()
 end
