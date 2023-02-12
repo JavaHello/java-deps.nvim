@@ -20,8 +20,8 @@ M.attach = function(client, _, root_dir)
   M.current_client = client
   M.root_dir = root_dir or client.config.root_dir
   M.root_uri = "file://" .. M.root_dir
-  if M.current_config().root_path == nil then
-    vim.notify(config.jdtls_name .. " client root_path is empty", vim.log.levels.ERROR)
+  if M.current_config().root_dir == nil then
+    vim.notify(config.jdtls_name .. " client root_dir is empty", vim.log.levels.ERROR)
   end
 end
 
