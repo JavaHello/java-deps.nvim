@@ -119,14 +119,4 @@ M.get_client = function(server_name)
 	end
 end
 
-M.get_root_project_uri = function(client)
-	if client then
-		return "file://" .. client.config.root_dir
-	end
-end
-M.get_root_project_path = function(client)
-	if client then
-		return  client.config.root_dir
-	end
-end
 return M
