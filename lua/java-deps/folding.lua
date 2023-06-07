@@ -1,15 +1,15 @@
 local M = {}
 local config = require("java-deps.config")
-local node_kind = require("java-deps.symbols").node_kind
+local node_kind = require("java-deps.symbols").NodeKind
 
 local is_pkg = function(node)
 	if
-		node_kind.WORKSPACE == node.kind
-		or node_kind.CONTAINER == node.kind
-		or node_kind.PROJECT == node.kind
-		or node_kind.PACKAGEROOT == node.kind
-		or node_kind.PACKAGE == node.kind
-		or node_kind.FOLDER == node.kind
+		node_kind.Workspace == node.kind
+		or node_kind.Container == node.kind
+		or node_kind.Project == node.kind
+		or node_kind.PackageRoot == node.kind
+		or node_kind.Package == node.kind
+		or node_kind.Folder == node.kind
 	then
 		return true
 	end

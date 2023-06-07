@@ -50,27 +50,14 @@ local function parse_result(result, depth, hierarchy, parent)
 	return ret
 end
 
+
+
 local function sort_result(result)
 	table.sort(result, function(a, b)
-		if a.entryKind and b.entryKind then
 			if a.kind == b.kind then
-				return a.name:upper() < b.name:upper()
+        return a.name < b.name
 			end
-			return a.entryKind < b.entryKind
-		end
-		if a.kind == b.kind then
-			if
-				a.kind == symbols.node_kind.PROJECT
-				or a.kind == symbols.node_kind.PRIMARYTYPE
-				or a.kind == symbols.node_kind.PACKAGEROOT
-				or a.kind == symbols.node_kind.PACKAGE
-			then
-				if a.name ~= b.name then
-					return a.name:upper() < b.name:upper()
-				end
-			end
-		end
-		return false
+			return a.kind < b.kind
 	end)
 	return result
 end
@@ -179,7 +166,7 @@ function M.get_details(flattened_outline_items)
 	local lines = {}
 	for _, value in ipairs(flattened_outline_items) do
 		local detail
-		if symbols.type_kind(value) == symbols.node_kind.JAR then
+		if symbols.type_kind(value) == symbols.NodeKind.JAR then
 			detail = value.path
 		end
 		table.insert(lines, detail or "")
