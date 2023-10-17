@@ -24,7 +24,8 @@ local M = {
     flattened_outline_items = {},
     code_buf = nil,
     code_win = nil,
-    outline_items = nil,
+    root_items = nil,
+    current_node = nil,
   },
 }
 
@@ -59,11 +60,21 @@ local function setup_buffer_autocmd()
 end
 
 local function wipe_state()
-  M.state = { outline_items = {}, flattened_outline_items = {}, code_win = 0, code_buf = 0 }
+  M.state = {
+    preview_buf = nil,
+    preview_win = nil,
+    hover_buf = nil,
+    hover_win = nil,
+    flattened_outline_items = {},
+    code_buf = nil,
+    code_win = nil,
+    root_items = nil,
+    current_node = nil,
+  }
 end
 
 local function _update_lines()
-  M.state.flattened_outline_items = parser.flatten(M.state.outline_items)
+  M.state.flattened_outline_items = parser.flatten(M.state.root_items)
   writer.parse_and_write(M.view.bufnr, M.state.flattened_outline_items)
 end
 
@@ -83,14 +94,122 @@ local function goto_location(change_focus)
   end
 end
 
+local function reveal_paths(children, parent)
+  if children and #children < 1 then
+    return
+  end
+  for i = 1, #children, 1 do
+    local node = children[i]
+    if node == nil then
+      return
+    end
+    local perfix
+    node.parent = parent
+    if node.cname == nil and node.kind == node_kind.Package then
+      node.cname = node.name
+      local name = node.name:match(".+%.(%w+)$")
+      if name ~= nil then
+        node.name = name
+      end
+      perfix = node.cname .. "."
+    else
+      perfix = node.name .. "."
+    end
+    local j = i + 1
+    local next_children = nil
+    while j < #children do
+      local next_node = children[j]
+      if next_node.cname == nil and node.kind == node_kind.Package then
+        next_node.cname = next_node.name
+        local name = next_node.name:match(".+%.(%w+)$")
+        if name ~= nil then
+          next_node.name = name
+        end
+      end
+      if node.kind == next_node.kind and vim.startswith(next_node.cname, perfix) then
+        if next_children == nil then
+          next_children = {}
+        end
+        table.insert(next_children, next_node)
+        table.remove(children, j)
+      else
+        j = j + 1
+      end
+    end
+    node.children = next_children
+    if node.children ~= nil then
+      reveal_paths(node.children, node)
+    end
+  end
+end
+
+local function node_eq(a, b)
+  if a == nil or b == nil then
+    return false
+  end
+  return a.kind == b.kind and a.name == b.name and a.path == b.path
+end
+local function find_pkg(node)
+  if node == nil then
+    return nil
+  end
+  if node.kind > node_kind.Package then
+    return nil
+  end
+  if node.kind == node_kind.Package then
+    return node
+  else
+    find_pkg(node.parent)
+  end
+end
+
+function open_pkg(node)
+  if node.kind == node_kind.Package then
+    if node.children == nil then
+      node.children = {}
+    end
+    local c = lsp_command.get_package_data(M.state.code_buf, node)
+    if c ~= nil and type(c) == "table" and #c > 0 then
+      vim.list_extend(node.children, c)
+    end
+  end
+end
+function open_pkgs(node)
+  if node.kind == node_kind.Package then
+    if node.children == nil then
+      node.children = {}
+    else
+      open_pkgs(node.children[1])
+    end
+    local c = lsp_command.get_package_data(M.state.code_buf, node)
+    if c ~= nil and type(c) == "table" and #c > 0 then
+      vim.list_extend(node.children, c)
+    end
+  end
+end
+
 local function package_handler(node)
   if not folding.is_foldable(node) then
     return
   end
   if M.view:is_open() then
     local response = lsp_command.get_package_data(M.state.code_buf, node)
-    if response == nil or type(response) ~= "table" then
+    if response == nil or type(response) ~= "table" or #response < 1 then
       return
+    end
+    if node.kind == node_kind.PackageRoot then
+      parser.sort_result(response)
+      reveal_paths(response, node)
+      local pkg = find_pkg(M.state.current_node)
+      if pkg ~= nil then
+        for _, n in ipairs(response) do
+          if n.kind == node_kind.Package and node_eq(n, pkg) then
+            open_pkg(n)
+          end
+        end
+      else
+        open_pkgs(response[1])
+      end
     end
     local child_hir = t_utils.array_copy(node.hierarchy)
     table.insert(child_hir, node.isLast)
@@ -117,6 +236,7 @@ end
 
 function M._set_folded_or_open(open, move_cursor, node_index)
   local node = M.state.flattened_outline_items[node_index] or M._current_node()
+  M.state.current_node = node
   local folded = false
   if node.folded ~= nil then
     folded = not node.folded
@@ -134,6 +254,7 @@ function M._set_folded_or_open(open, move_cursor, node_index)
 end
 function M._set_folded(folded, move_cursor, node_index)
   local node = M.state.flattened_outline_items[node_index] or M._current_node()
+  M.state.current_node = node
   if folding.is_foldable(node) then
     node.folded = folded
 
@@ -153,7 +274,7 @@ function M._set_folded(folded, move_cursor, node_index)
 end
 
 function M._set_all_folded(folded, nodes)
-  nodes = nodes or M.state.outline_items
+  nodes = nodes or M.state.root_items
 
   for _, node in ipairs(nodes) do
     node.folded = folded
@@ -200,7 +321,7 @@ function M._highlight_current_item(winnr)
     end
   end
 
-  utils.items_dfs(cb, M.state.outline_items)
+  utils.items_dfs(cb, M.state.root_items)
 
   _update_lines()
 
@@ -272,7 +393,7 @@ local function handler(response)
 
   local items = parser.parse(response)
 
-  M.state.outline_items = items
+  M.state.root_items = items
   M.state.flattened_outline_items = parser.flatten(items)
 
   writer.parse_and_write(M.view.bufnr, M.state.flattened_outline_items)
@@ -293,11 +414,11 @@ local function resolve_path(path)
   local function find_root(node)
     for _, value in ipairs(M.state.flattened_outline_items) do
       if value.kind == node.kind then
-        if node.kind == 5 then
+        if node.kind == node_kind.PrimaryType then
           if value.name == node.name then
             return value
           end
-        elseif node.kind == 6 then
+        elseif node.kind == node_kind.CompilationUnit then
           if value.uri == node.uri then
             return value
           end
