@@ -31,7 +31,7 @@ npm install
 npm run build-server
 ```
 
-- 配置 `vscode-java-dependency` 到 jdtls_config["init_options"].bundles 中
+- 将 `vscode-java-dependency` 编译后的 `jar` 添加到 jdtls_config["init_options"].bundles 中
 
 ```lua
 local jdtls_config = {}
