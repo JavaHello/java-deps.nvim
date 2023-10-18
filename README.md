@@ -7,6 +7,8 @@
 
 ## 安装
 
+[English](https://github.com/JavaHello/java-deps.nvim/issues/2)
+
 - lazy.nvim
 
 ```lua
