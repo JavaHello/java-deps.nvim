@@ -197,20 +197,7 @@ local function package_handler(node)
     if response == nil or type(response) ~= "table" or #response < 1 then
       return
     end
-    if node.kind == node_kind.PackageRoot then
-      parser.sort_result(response)
-      reveal_paths(response, node)
-      local pkg = find_pkg(M.state.current_node)
-      if pkg ~= nil then
-        for _, n in ipairs(response) do
-          if n.kind == node_kind.Package and node_eq(n, pkg) then
-            open_pkg(n)
-          end
-        end
-      else
-        open_pkgs(response[1])
-      end
-    end
+    parser.sort_result(response)
     local child_hir = t_utils.array_copy(node.hierarchy)
     table.insert(child_hir, node.isLast)
     node.children = parser.parse(response, node.depth + 1, child_hir, node)
@@ -270,6 +257,8 @@ function M._set_folded(folded, move_cursor, node_index)
     if parent_node then
       M._set_folded(folded, not parent_node.folded and folded, parent_node.line_in_outline)
     end
+  else
+    node.folded = false
   end
 end
 
