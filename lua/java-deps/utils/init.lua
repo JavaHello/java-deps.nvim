@@ -1,20 +1,37 @@
 local M = {}
 
+M.is_instance = function(obj, class)
+  local mt = getmetatable(obj)
+  while mt do
+    if mt == class then
+      return true
+    end
+    mt = getmetatable(mt)
+  end
+  return false
+end
+
+M.super = function(obj, class)
+  local mt = getmetatable(obj)
+  while mt do
+    if mt == class then
+      return mt.__index
+    end
+    mt = getmetatable(mt)
+  end
+  return nil
+end
+
 ---maps the table|string of keys to the action
 ---@param keys table|string
 ---@param action function|string
 function M.nmap(bufnr, keys, action)
-  if type(keys) == 'string' then
+  if type(keys) == "string" then
     keys = { keys }
   end
 
   for _, lhs in ipairs(keys) do
-    vim.keymap.set(
-      'n',
-      lhs,
-      action,
-      { silent = true, noremap = true, buffer = bufnr }
-    )
+    vim.keymap.set("n", lhs, action, { silent = true, noremap = true, buffer = bufnr })
   end
 end
 
@@ -64,20 +81,20 @@ M.merge_items_rec = function(new_node, old_node, index, parent)
     for key, _ in pairs(new_node) do
       if
         vim.tbl_contains({
-          'parent',
-          'children',
-          'folded',
-          'hovered',
-          'line_in_outline',
-          'hierarchy',
+          "parent",
+          "children",
+          "folded",
+          "hovered",
+          "line_in_outline",
+          "hierarchy",
         }, key)
       then
         goto continue
       end
 
-      if key == 'name' then
+      if key == "name" then
         -- in the case of a rename, just rename the existing node
-        old_node['name'] = new_node['name']
+        old_node["name"] = new_node["name"]
       else
         if not vim.deep_equal(new_node[key], old_node[key]) then
           failed = true
@@ -108,15 +125,6 @@ M.merge_items_rec = function(new_node, old_node, index, parent)
       M.merge_items_rec(next_new_item[i], next_old_item[i], i, next_old_item)
     end
   end
-end
-
-M.get_client = function(server_name)
-	local clients = vim.lsp.get_active_clients()
-	for _, client in ipairs(clients) do
-		if client.name == server_name then
-			return client
-		end
-	end
 end
 
 return M

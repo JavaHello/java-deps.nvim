@@ -9,46 +9,42 @@ local function parse_result(result, depth, hierarchy, parent)
   local ret = nil
 
   for index, value in pairs(result) do
-    if not config.is_symbol_blacklisted(symbols.kinds[value.kind]) then
-      -- the hierarchy is basically a table of booleans which tells whether
-      -- the parent was the last in its group or not
-      local hir = hierarchy or {}
-      -- how many parents this node has, 1 is the lowest value because its
-      -- easier to work it
-      local level = depth or 1
-      -- whether this node is the last in its group
-      local isLast = index == #result
+    local hir = hierarchy or {}
+    -- how many parents this node has, 1 is the lowest value because its
+    -- easier to work it
+    local level = depth or 1
+    -- whether this node is the last in its group
+    local isLast = index == #result
 
-      local node = {
-        entryKind = value.entryKind,
-        metaData = value.metaData,
-        handlerIdentifier = value.handlerIdentifier,
-        kind = value.kind,
-        uri = value.uri,
-        path = value.path,
-        name = value.name,
-        icon = symbols.icon_from_kind(value),
-        depth = level,
-        isLast = isLast,
-        hierarchy = hir,
-        parent = parent,
-      }
-      if ret == nil then
-        ret = {}
-      end
-
-      table.insert(ret, node)
-
-      local children = nil
-      if value.children ~= nil then
-        -- copy by value because we dont want it messing with the hir table
-        local child_hir = t_utils.array_copy(hir)
-        table.insert(child_hir, isLast)
-        children = parse_result(value.children, level + 1, child_hir, node)
-      end
-
-      node.children = children
+    local node = {
+      entryKind = value.entryKind,
+      metaData = value.metaData,
+      handlerIdentifier = value.handlerIdentifier,
+      kind = value.kind,
+      uri = value.uri,
+      path = value.path,
+      name = value.name,
+      icon = symbols.icon_from_kind(value),
+      depth = level,
+      isLast = isLast,
+      hierarchy = hir,
+      parent = parent,
+    }
+    if ret == nil then
+      ret = {}
     end
+
+    table.insert(ret, node)
+
+    local children = nil
+    if value.children ~= nil then
+      -- copy by value because we dont want it messing with the hir table
+      local child_hir = t_utils.array_copy(hir)
+      table.insert(child_hir, isLast)
+      children = parse_result(value.children, level + 1, child_hir, node)
+    end
+
+    node.children = children
   end
   return ret
 end

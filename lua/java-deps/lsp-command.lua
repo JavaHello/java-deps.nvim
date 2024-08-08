@@ -1,91 +1,41 @@
 local config = require("java-deps.config")
-local context = require("java-deps.context")
-local symbols = require("java-deps.symbols")
 local M = {}
 
-local request = function(bufnr, method, params, handler)
-  local client = context.current_client
-  client.request(method, params, handler, bufnr)
-end
-local request_sync = function(bufnr, method, params, timeout)
-  timeout = timeout or config.options.request_timeout
-  local client = context.current_client
-  return client.request_sync(method, params, timeout, bufnr)
-end
+M.JAVA_PROJECT_LIST = "java.project.list"
+M.GET_ALL_PROJECTS = "java.project.getAll"
+M.JAVA_PROJECT_REFRESH_LIB_SERVER = "java.project.refreshLib"
+M.JAVA_GETPACKAGEDATA = "java.getPackageData"
+M.JAVA_RESOLVEPATH = "java.resolvePath"
+M.JAVA_PROJECT_GETMAINCLASSES = "java.project.getMainClasses"
 
-M.command = function(buf, params, handler)
-  request(buf, "workspace/executeCommand", params, function(err, projects)
-    if err then
-      vim.notify(err.message, vim.log.levels.WARN)
-    elseif projects then
-      handler(projects)
-    end
-  end)
-end
-
-M.command_sync = function(buf, command, arguments, timeout)
-  local params0 = {}
-  params0.command = command
-  params0.arguments = arguments
-  local resp, err = request_sync(buf, "workspace/executeCommand", params0, timeout)
-  if err then
-    vim.notify("executeCommand " .. command .. " error: " .. err)
+---@return vim.lsp.Client?
+M.get_client = function()
+  local clients = vim.lsp.get_clients({ name = config.jdtls_name or "jdtls" })
+  if not clients or #clients == 0 then
+    vim.notify("No jdtls client found", vim.log.levels.WARN)
     return
   end
-  if resp.result ~= nil then
-    return resp.result
-  elseif resp.error ~= nil then
-    vim.notify(vim.inspect(resp), vim.log.levels.WARN)
-  end
+  return clients[1]
 end
 
-local function root_project(node)
-  local root = node
-  while root ~= nil do
-    if root.kind == symbols.NodeKind.Project then
-      return root
+M.execute_command = function(command, callback, bufnr)
+  local client = M.get_client()
+  if not client then
+    return
+  end
+  local co
+  if not callback then
+    co = coroutine.running()
+    if co then
+      callback = function(err, resp)
+        coroutine.resume(co, err, resp)
+      end
     end
-    root = root.parent
+  end
+  client.request("workspace/executeCommand", command, callback, bufnr)
+  if co then
+    return coroutine.yield()
   end
 end
 
-M.get_package_data = function(buf, node)
-  local arguments = {
-    kind = node.kind,
-  }
-  if node.kind == symbols.NodeKind.Project then
-    arguments.projectUri = node.uri
-  elseif node.kind == symbols.NodeKind.Container then
-    arguments.projectUri = root_project(node).uri
-    arguments.path = node.path
-  elseif node.kind == symbols.NodeKind.PackageRoot then
-    arguments.projectUri = root_project(node).uri
-    arguments.rootPath = node.path
-    arguments.handlerIdentifier = node.handlerIdentifier
-    arguments.isHierarchicalView = config.options.hierarchical_view
-  elseif node.kind == symbols.NodeKind.Package then
-    arguments.projectUri = root_project(node).uri
-    arguments.path = node.name
-    arguments.handlerIdentifier = node.handlerIdentifier
-  else
-    arguments.projectUri = root_project(node).uri
-    arguments.path = node.path
-  end
-  return M.command_sync(buf, "java.getPackageData", arguments)
-end
-
-M.get_projects = function(buf, rootUri)
-  rootUri = rootUri or context.root_uri
-  local arguments = {
-    rootUri,
-  }
-  return M.command_sync(buf, "java.project.list", arguments)
-end
-
-M.resolve_path = function(buf, uri)
-  local arguments = {
-    uri,
-  }
-  return M.command_sync(buf, "java.resolvePath", arguments)
-end
 return M
