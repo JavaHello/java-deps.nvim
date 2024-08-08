@@ -1,6 +1,5 @@
 local parser = require 'java-deps.parser'
 local config = require 'java-deps.config'
-local ui = require 'java-deps.ui'
 
 local M = {}
 

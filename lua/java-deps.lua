@@ -1,6 +1,7 @@
 local jdtls = require("java-deps.java.jdtls")
 local config = require("java-deps.config")
 local View = require("java-deps.view")
+local data_node = require("java-deps.views.data_node")
 
 local M = {
   view = nil,
@@ -14,9 +15,16 @@ local M = {
   },
 }
 
-function handle_projects(projects)
+local function handle_projects(projects)
   if not projects or #projects < 1 then
     return
+  end
+  local project_nodes = {}
+  for _, project in ipairs(projects) do
+    if project then
+      local root = data_node.createNode(project)
+      table.insert(project_nodes, root)
+    end
   end
 end
 
@@ -32,8 +40,10 @@ function M.open_outline()
   if not M.view:is_open() then
     M.state.code_buf = vim.api.nvim_get_current_buf()
     local uri = vim.uri_from_fname(jdtls.root_dir())
-    local resp = jdtls.getProjects(uri)
-    handle_projects(resp)
+    vim.defer_fn(function()
+      local resp = jdtls.getProjects(uri)
+      handle_projects(resp)
+    end, 0)
   end
 end
 

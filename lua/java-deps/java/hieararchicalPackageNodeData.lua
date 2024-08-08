@@ -1,27 +1,29 @@
-local nodeData = require("java-deps.java.nodeData")
-local NodeKind = nodeData.NodeKind
-local INodeData = nodeData.INodeData
+local _n = require("java-deps.java.nodeData")
+local NodeKind = _n.NodeKind
+local INodeData = _n.INodeData
+local M = {}
 
 ---@class HierarchicalPackageNodeData: INodeData
 ---@field displayName string
 ---@field name string
 ---@field nodeData? INodeData
 ---@field children HierarchicalPackageNodeData[]
-local HieararchicalPackageNodeData = nodeData.INodeData:new()
-HieararchicalPackageNodeData.__index = HieararchicalPackageNodeData
+local HierarchicalPackageNodeData = INodeData:new()
+HierarchicalPackageNodeData.__index = HierarchicalPackageNodeData
 
 ---@param displayName string
 ---@param parentName? string
-function HieararchicalPackageNodeData:new(displayName, parentName)
+---@return HierarchicalPackageNodeData
+function HierarchicalPackageNodeData:new(displayName, parentName)
   local name = (parentName == nil or parentName == "") and displayName or parentName .. "." .. displayName
-  local base = INodeData:new()
-  base.displayName = displayName
-  base.name = name
-  base.children = {}
-  return setmetatable(base, self)
+  return setmetatable({
+    displayName = displayName,
+    name = name,
+    children = {},
+  }, self)
 end
 
-function HieararchicalPackageNodeData:compressTree()
+function HierarchicalPackageNodeData:compressTree()
   while self.name ~= "" and #self.children == 1 and not self:isPackage() do
     local child = self.children[1]
     self.name = self.name .. "." .. child.displayName
@@ -35,9 +37,10 @@ function HieararchicalPackageNodeData:compressTree()
 end
 ---@param packages string[]
 ---@param _nodeData INodeData
-function HieararchicalPackageNodeData:addSubPackage(packages, _nodeData)
+function HierarchicalPackageNodeData:addSubPackage(packages, _nodeData)
   if #packages == 0 then
     self.nodeData = _nodeData
+    -- TODO
     return
   end
   local subPackageDisplayName = table.remove(packages, 1)
@@ -51,32 +54,45 @@ function HieararchicalPackageNodeData:addSubPackage(packages, _nodeData)
   if childNode then
     childNode:addSubPackage(packages, _nodeData)
   else
-    local newNode = HieararchicalPackageNodeData:new(subPackageDisplayName, self.name)
+    local newNode = HierarchicalPackageNodeData:new(subPackageDisplayName, self.name)
     newNode:addSubPackage(packages, _nodeData)
     table.insert(self.children, newNode)
   end
 end
-function HieararchicalPackageNodeData:getUri()
+function HierarchicalPackageNodeData:get_getUri()
   return self.nodeData and self.nodeData.uri
 end
-function HieararchicalPackageNodeData:moduleName()
+function HierarchicalPackageNodeData:get_moduleName()
   return self.nodeData and self.nodeData.moduleName
 end
 
-function HieararchicalPackageNodeData:path()
+function HierarchicalPackageNodeData:get_path()
   return self.nodeData and self.nodeData.path
 end
 
-function HieararchicalPackageNodeData:kind()
+function HierarchicalPackageNodeData:get_kind()
   return self.nodeData and self.nodeData.kind or NodeKind.Package
 end
 
-function HieararchicalPackageNodeData:isPackage()
+function HierarchicalPackageNodeData:isPackage()
   return self.nodeData ~= nil
 end
 
-function HieararchicalPackageNodeData:handlerIdentifier()
+function HierarchicalPackageNodeData:handlerIdentifier()
   return self.nodeData and self.nodeData.handlerIdentifier
 end
+M.HierarchicalPackageNodeData = HierarchicalPackageNodeData
 
-return HieararchicalPackageNodeData
+---@param packageList INodeData[]
+---@return HierarchicalPackageNodeData
+M.createHierarchicalNodeDataByPackageList = function(packageList)
+  local result = HierarchicalPackageNodeData:new("", "")
+  for _, nodeData in ipairs(packageList) do
+    local packages = vim.split(nodeData.name, "%.")
+    result:addSubPackage(packages, nodeData)
+  end
+  result:compressTree()
+  return result
+end
+
+return M

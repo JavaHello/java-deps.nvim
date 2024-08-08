@@ -36,6 +36,10 @@ function INodeData:new()
   return setmetatable({}, self)
 end
 
+function INodeData:print()
+  print(vim.inspect(self))
+end
+
 M.INodeData = INodeData
 
 return M

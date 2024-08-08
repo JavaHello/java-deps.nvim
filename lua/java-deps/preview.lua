@@ -172,30 +172,6 @@ local function set_bg_hl()
   vim.api.nvim_win_set_option(state.hover_win, "winblend", winblend)
 end
 
-local function show_preview()
-  if state.preview_win == nil and state.preview_buf == nil then
-    state.preview_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_attach(state.preview_buf, false, {
-      on_detach = function()
-        state.preview_buf = nil
-        state.preview_win = nil
-      end,
-    })
-    local offsets = get_offset()
-    state.preview_win = vim.api.nvim_open_win(state.preview_buf, false, {
-      relative = "win",
-      width = 50,
-      height = get_height(),
-      bufpos = { 0, 0 },
-      row = offsets[1],
-      col = offsets[2],
-      border = config.options.border,
-    })
-    setup_preview_buf()
-  else
-    update_preview()
-  end
-end
 
 local function show_hover()
   if state.hover_win == nil and state.hover_buf == nil then
