@@ -47,7 +47,7 @@ M.ContainerPath = {
 }
 
 ---@enum TreeItemCollapsibleState
-local TreeItemCollapsibleState = {
+M.TreeItemCollapsibleState = {
   None = 0,
   Collapsed = 1,
   Expanded = 2,
@@ -77,7 +77,7 @@ DataNode._hierarchicalNode = false
 ---@param rootNode DataNode?
 ---@return DataNode
 function DataNode:new(nodeData, parent, project, rootNode)
-  local data = setmetatable(ExplorerNode:new(), self)
+  local data = setmetatable({}, self)
   data._nodeData = nodeData
   data._parent = parent
   data._project = project
@@ -206,7 +206,9 @@ function DataNode:loadData()
   end
 end
 
-function DataNode:icon() end
+function DataNode:icon()
+  return "C"
+end
 function DataNode:kind()
   return self._nodeData.kind
 end
@@ -214,11 +216,11 @@ end
 function DataNode:sort()
   table.sort(self._childrenNodes, function(a, b)
     ---@diagnostic disable: undefined-field
-    if a._nodeData.kind and a._nodeData.kind then
+    if a._nodeData.kind and b._nodeData.kind and a._nodeData.name and b._nodeData.name then
       if a._nodeData.kind == b._nodeData.kind then
-        return a._nodeData.name < b._nodeData.name and false or true
+        return a._nodeData.name < b._nodeData.name
       else
-        return a._nodeData.kind - b._nodeData.kind
+        return a._nodeData.kind < b._nodeData.kind
       end
     end
     return false
@@ -300,15 +302,14 @@ function DataNode:getChildren()
       end
       self._childrenNodes = self:createChildNodeList() or {}
       self:sort()
-      return self._childrenNodes
     end
+    return self._childrenNodes
   else
     if not self._nodeData.children then
       local data = self:loadData()
       self._nodeData.children = data
       self._childrenNodes = self:createChildNodeList() or {}
       self:sort()
-      return self._childrenNodes
     end
     return self._childrenNodes
   end
@@ -407,15 +408,20 @@ function DataNode:hasChildren()
   return self._childrenNodes and #self._childrenNodes > 0
 end
 
+function M.is_folded(tree)
+  return tree.collapsible == M.TreeItemCollapsibleState.Collapsed
+end
+
 function DataNode:getTreeItem()
   ---@type TreeItem
   local item = {
     label = self._nodeData.displayName or self._nodeData.name,
-    collapsible = self:hasChildren() and TreeItemCollapsibleState.Collapsed or TreeItemCollapsibleState.None,
+    collapsible = self:hasChildren() and M.TreeItemCollapsibleState.Collapsed or M.TreeItemCollapsibleState.None,
   }
   item.description = self:description()
   item.icon = self:icon()
   item.command = self:command()
+  item.data = self
   if self._nodeData.uri then
     local kind = self:kind()
     if

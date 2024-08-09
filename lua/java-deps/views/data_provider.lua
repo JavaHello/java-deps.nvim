@@ -1,15 +1,17 @@
-local M
+local M = {}
 
 ---@class TreeItem
 ---@field label? string
 ---@field id? string
 ---@field icon? string
----@field level? number
+---@field depth? number
 ---@field description? string
 ---@field resourceUri? string
 ---@field command? string
 ---@field collapsibleState? TreeItemCollapsibleState
----@field data? ExplorerNode
+---@field isLast? boolean
+---@field data? DataNode
+---@field hierarchy? table
 local TreeItem = {}
 
 ---@param nodes DataNode[]
@@ -17,9 +19,12 @@ local TreeItem = {}
 function M.flattenTree(nodes, _level)
   local level = _level or 0
   local result = {}
-  for _, node in ipairs(nodes) do
+  for idx, node in ipairs(nodes) do
     local c = node:getTreeItem()
-    c.level = level
+    c.depth = level
+    if idx == #nodes then
+      c.isLast = true
+    end
     table.insert(result, c)
     if node:hasChildren() then
       local children = M.flattenTree(node._childrenNodes, level + 1)

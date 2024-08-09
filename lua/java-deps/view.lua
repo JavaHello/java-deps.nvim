@@ -1,8 +1,13 @@
 local config = require("java-deps.config")
+
+---@class View
+---@field bufnr number
+---@field winnr number
 local View = {}
+View.__index = View
 
 function View:new()
-  return setmetatable({ bufnr = nil, winnr = nil }, { __index = View })
+  return setmetatable({ bufnr = nil, winnr = nil }, self)
 end
 
 ---creates the outline window and sets it up
@@ -55,6 +60,9 @@ function View:close()
   vim.api.nvim_win_close(self.winnr, true)
   self.winnr = nil
   self.bufnr = nil
+end
+function View:open()
+  self:setup_view()
 end
 
 function View:is_open()

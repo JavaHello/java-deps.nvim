@@ -14,7 +14,7 @@ M.getProjects = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return resp and resp.reslut or {}
+  return resp or {}
 end
 M.root_dir = function()
   return lsp_command.get_client().root_dir
@@ -28,7 +28,7 @@ M.getProjectUris = function()
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return resp and resp.reslut or {}
+  return resp or {}
 end
 
 -- interface IPackageDataParam {
@@ -39,13 +39,16 @@ end
 ---@return INodeData[]
 M.getPackageData = function(params)
   local excludePatterns = {}
-  local err, resp = lsp_command.execute_command(lsp_command.JAVA_GETPACKAGEDATA, params)
+  local err, resp = lsp_command.execute_command({
+    command = lsp_command.JAVA_GETPACKAGEDATA,
+    arguments = params,
+  })
   if err then
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
   ---@type INodeData[]
-  local nodeData = resp and resp.reslut or {}
+  local nodeData = resp and resp or {}
   -- Filter out non java resources
   if true then
     nodeData = vim.tbl_filter(function(data)
