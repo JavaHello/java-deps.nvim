@@ -236,11 +236,12 @@ function DataNode:revealPaths(paths)
   if kind == NodeKind.PackageRoot then
     local hierarchicalNodeData = paths[1]
     local children = self:getChildren()
-    ---@type DataNode?
+    ---@type DataNode[]?
     local childNode = vim.tbl_filter(function(child)
       return vim.startswith(hierarchicalNodeData.name, child._nodeData.name .. ".")
         or hierarchicalNodeData.name == child._nodeData.name
     end, children)
+    ---@type DataNode?
     childNode = childNode and #childNode > 0 and childNode[1] or nil
     if childNode and not childNode[1]._hierarchicalNode then
       table.remove(paths, 1)
@@ -253,11 +254,12 @@ function DataNode:revealPaths(paths)
       return self:revealPaths(paths)
     else
       local children = self:getChildren()
-      ---@type DataNode?
+      ---@type DataNode[]?
       local childNode = vim.tbl_filter(function(child)
         return vim.startswith(hierarchicalNodeData.name, child._nodeData.name .. ".")
           or hierarchicalNodeData.name == child._nodeData.name
       end, children)
+      ---@type DataNode?
       childNode = childNode and #childNode > 0 and childNode[1] or nil
       return (childNode and #paths > 0) and childNode:revealPaths(paths) or nil
     end
