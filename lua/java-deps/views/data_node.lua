@@ -65,11 +65,13 @@ end
 ---@field _parent DataNode?
 ---@field _project DataNode?
 ---@field _rootNode DataNode?
----@field _hierarchicalNode boolean
+---@field _hierarchicalPackageNode boolean
+---@field _hierarchicalPackageRootNode boolean
 local DataNode = ExplorerNode:new()
 
 DataNode.__index = DataNode
-DataNode._hierarchicalNode = false
+DataNode._hierarchicalPackageNode = false
+DataNode._hierarchicalPackageRootNode = false
 
 ---@param nodeData INodeData
 ---@param parent DataNode?
@@ -227,14 +229,64 @@ function DataNode:sort()
   end)
 end
 
+function DataNode:baseRevealPaths(paths)
+  if #paths == 0 then
+    return self
+  end
+  local childNodeData = table.remove(paths, 1)
+  ---@type DataNode[]
+  local children = self:getChildren()
+  ---@type DataNode[]?
+  local childNode = vim.tbl_filter(function(child)
+    return childNodeData.name == child._nodeData.name and childNodeData.path == child._nodeData.path
+  end, children)
+  childNode = (childNode and #childNode > 0) and childNode[1] or nil
+  return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+end
+
+---@param uri string
+---@return boolean
+local function is_workspace_file(uri)
+  local rootPath = jdtls.root_dir()
+  if vim.startswith(uri, "file:/") then
+    local path = vim.uri_to_fname(uri)
+    return path == rootPath or vim.startswith(path, rootPath)
+  end
+  return false
+end
+
 ---@param paths INodeData[]
 function DataNode:revealPaths(paths)
   if #paths == 0 then
     return self
   end
   local kind = self:kind()
-  if kind == NodeKind.PackageRoot then
+  if kind == NodeKind.Project then
+    if not self._nodeData.uri then
+      return
+    end
+
+    if is_workspace_file(self._nodeData.uri) then
+      return self:baseRevealPaths(paths)
+    end
+
+    local childNodeData = paths[1]
+    ---@type DataNode[]
+    local children = self:getChildren()
+    ---@type DataNode[]?
+    local childNode = vim.tbl_filter(function(child)
+      return vim.startswith(childNodeData.name, child._nodeData.name .. ".")
+        or childNodeData.name == child._nodeData.name
+    end, children)
+    ---@type DataNode?
+    childNode = (childNode and #childNode > 0) and childNode[1] or nil
+    if childNode and childNode._hierarchicalPackageNode then
+      table.remove(paths, 1)
+    end
+    return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+  elseif kind == NodeKind.PackageRoot and self._hierarchicalPackageRootNode then
     local hierarchicalNodeData = paths[1]
+    ---@type DataNode[]
     local children = self:getChildren()
     ---@type DataNode[]?
     local childNode = vim.tbl_filter(function(child)
@@ -242,17 +294,18 @@ function DataNode:revealPaths(paths)
         or hierarchicalNodeData.name == child._nodeData.name
     end, children)
     ---@type DataNode?
-    childNode = childNode and #childNode > 0 and childNode[1] or nil
-    if childNode and not childNode[1]._hierarchicalNode then
+    childNode = (childNode and #childNode > 0) and childNode[1] or nil
+    if childNode and not childNode._hierarchicalPackageNode then
       table.remove(paths, 1)
     end
     return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
-  elseif kind == NodeKind.Package then
+  elseif kind == NodeKind.Package and self._hierarchicalPackageNode then
     local hierarchicalNodeData = paths[1]
     if hierarchicalNodeData.name == self._nodeData.name then
       table.remove(paths, 1)
-      return self:revealPaths(paths)
+      return self:baseRevealPaths(paths)
     else
+      ---@type DataNode[]
       local children = self:getChildren()
       ---@type DataNode[]?
       local childNode = vim.tbl_filter(function(child)
@@ -264,14 +317,7 @@ function DataNode:revealPaths(paths)
       return (childNode and #paths > 0) and childNode:revealPaths(paths) or nil
     end
   else
-    local childNodeData = table.remove(paths, 1)
-    local children = self:getChildren()
-    ---@type DataNode?
-    local childNode = vim.tbl_filter(function(child)
-      return childNodeData.name == child._nodeData.name and childNodeData.path == child._nodeData.path
-    end, children)
-    childNode = childNode and #childNode > 0 and childNode[1] or nil
-    return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+    return self:baseRevealPaths(paths)
   end
 end
 
@@ -339,14 +385,16 @@ M.createNode = function(nodeData, parent, project, rootNode)
       vim.notify("Package root node must have parent and project", vim.log.levels.ERROR)
       return nil
     end
-    return DataNode:new(nodeData, parent, project, rootNode)
+    local data = DataNode:new(nodeData, parent, project, rootNode)
+    data._hierarchicalPackageRootNode = true
+    return data
   elseif nodeData.kind == NodeKind.Package then
     if not parent or not project or not rootNode then
       vim.notify("Package node must have parent, project and root node", vim.log.levels.ERROR)
       return nil
     end
     local data = DataNode:new(nodeData, parent, project, rootNode)
-    data._hierarchicalNode = true
+    data._hierarchicalPackageNode = true
     return data
   elseif nodeData.kind == NodeKind.PrimaryType then
     if nodeData.metaData and nodeData.metaData[M.K_TYPE_KIND] then

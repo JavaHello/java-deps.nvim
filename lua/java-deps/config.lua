@@ -11,7 +11,6 @@ local M = {
 		show_relative_numbers = false,
 		preview_bg_highlight = "Pmenu",
 		winblend = 0,
-		request_timeout = 3000,
 		autofold_depth = 99,
 		fold_markers = { "", "" },
 		position = "right",

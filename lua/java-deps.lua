@@ -1,7 +1,6 @@
 local jdtls = require("java-deps.java.jdtls")
 local config = require("java-deps.config")
 local View = require("java-deps.view")
-local data_node = require("java-deps.views.data_node")
 local provider = require("java-deps.views.data_provider")
 local writer = require("java-deps.writer")
 
@@ -14,24 +13,16 @@ local M = {
     code_win = nil,
     root_items = nil,
     current_node = nil,
+    current_path = nil,
   },
 }
 
-local function handle_projects(projects)
-  if not projects or #projects == 0 then
-    return
-  end
-  local project_nodes = {}
-  for _, project in ipairs(projects) do
-    if project then
-      local root = data_node.createNode(project)
-      if root then
-        root:getChildren()
-        table.insert(project_nodes, root)
-      end
-    end
-  end
-  local result = provider.flattenTree(project_nodes, 0)
+local function handle_projects()
+  local uri = vim.uri_from_fname(jdtls.root_dir())
+  local data = provider.DataProvider:new(uri, M.state.current_path)
+  data:revealPaths()
+  local result = data:flattenTree()
+  vim.print(vim.inspect(result))
   writer.parse_and_write(M.view.bufnr, result)
 end
 
@@ -46,11 +37,10 @@ end
 function M.open_outline()
   if not M.view:is_open() then
     M.state.code_buf = vim.api.nvim_get_current_buf()
+    M.state.current_path = vim.uri_from_bufnr(M.state.code_buf)
     M.view:open()
-    local uri = vim.uri_from_fname(jdtls.root_dir())
     local wf = coroutine.wrap(function()
-      local resp = jdtls.getProjects(uri)
-      handle_projects(resp)
+      handle_projects()
     end)
     local ok, err = pcall(wf)
     if not ok then

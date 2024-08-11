@@ -7,9 +7,9 @@ local M = {}
 ---@return INodeData[]
 M.getProjects = function(params)
   local err, resp = lsp_command.execute_command({
-    command = "java.project.list",
+    command = lsp_command.JAVA_PROJECT_LIST,
     arguments = params,
-  }, nil, 0)
+  })
   if err then
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
@@ -30,11 +30,6 @@ M.getProjectUris = function()
   end
   return resp or {}
 end
-
--- interface IPackageDataParam {
---     projectUri: string | undefined;
---     [key: string]: any;
--- }
 
 ---@return INodeData[]
 M.getPackageData = function(params)
@@ -84,4 +79,16 @@ M.getPackageData = function(params)
   return nodeData
 end
 
+---@return INodeData[]
+M.resolvePath = function(params)
+  local err, resp = lsp_command.execute_command({
+    command = lsp_command.JAVA_RESOLVEPATH,
+    arguments = params,
+  })
+  if err then
+    vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
+    return {}
+  end
+  return resp or {}
+end
 return M

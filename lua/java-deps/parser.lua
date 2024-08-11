@@ -59,8 +59,9 @@ function M.get_lines(flattened_outline_items)
           -- else add a middle marker
         elseif index == #line then
           -- add fold markers
-          if config.options.fold_markers and data_node.is_folded(node) then
-            if data_node.is_folded(node) then
+          local folded = data_node.is_folded(node)
+          if config.options.fold_markers and folded then
+            if folded then
               line[index] = config.options.fold_markers[1]
             else
               line[index] = config.options.fold_markers[2]
