@@ -33,7 +33,7 @@ end
 
 ---@return INodeData[]
 M.getPackageData = function(params)
-  local excludePatterns = {}
+  local excludePatterns = nil
   local err, resp = lsp_command.execute_command({
     command = lsp_command.JAVA_GETPACKAGEDATA,
     arguments = params,
@@ -43,18 +43,18 @@ M.getPackageData = function(params)
     return {}
   end
   ---@type INodeData[]
-  local nodeData = resp and resp or {}
+  local nodeDatas = resp and resp or {}
   -- Filter out non java resources
   if true then
-    nodeData = vim.tbl_filter(function(data)
+    nodeDatas = vim.tbl_filter(function(data)
       return data.kind ~= NodeKind.Folder and data.kind ~= NodeKind.File
-    end, nodeData)
+    end, nodeDatas)
   end
 
-  if excludePatterns and #nodeData > 0 then
+  if excludePatterns and #nodeDatas > 0 then
     local uriOfChildren = vim.tbl_map(function(node)
       return node.uri
-    end, nodeData)
+    end, nodeDatas)
 
     local urisToExclude = {}
     for _, pattern in pairs(excludePatterns) do
@@ -68,15 +68,15 @@ M.getPackageData = function(params)
       end
     end
     if #urisToExclude > 0 then
-      nodeData = vim.tbl_filter(function(node)
+      nodeDatas = vim.tbl_filter(function(node)
         if not node.uri then
           return true
         end
         return not vim.tbl_contains(urisToExclude, node.uri)
-      end, nodeData)
+      end, nodeDatas)
     end
   end
-  return nodeData
+  return nodeDatas
 end
 
 ---@return INodeData[]

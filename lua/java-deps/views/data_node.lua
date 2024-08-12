@@ -4,6 +4,7 @@ local ExplorerNode = require("java-deps.views.explorer_node").ExplorerNode
 local hieararchicalPackageNodeData = require("java-deps.java.hieararchicalPackageNodeData")
 
 local M = {}
+M.isHierarchicalView = true
 
 M.K_TYPE_KIND = "TypeKind"
 M.NATURE_ID = "NatureId"
@@ -87,6 +88,41 @@ function DataNode:new(nodeData, parent, project, rootNode)
   return data
 end
 
+---@return DataNode[]
+function DataNode:createHierarchicalPackageRootNode()
+  local result = {}
+  local packageData = {}
+  if self._nodeData.children then
+    for _, child in ipairs(self._nodeData.children) do
+      if child.kind == NodeKind.Package then
+        table.insert(packageData, child)
+      else
+        table.insert(result, M.createNode(child, self, self._project, self))
+      end
+    end
+    if #packageData > 0 then
+      local data = hieararchicalPackageNodeData.createHierarchicalNodeDataByPackageList(packageData)
+      if data and data.children then
+        for _, child in ipairs(data.children) do
+          table.insert(result, M.createNode(child, self, self._project, self))
+        end
+      end
+    end
+  end
+  return result
+end
+
+---@return DataNode[]
+function DataNode:createHierarchicalPackageNode()
+  local result = {}
+  if self._nodeData.children then
+    for _, child in ipairs(self._nodeData.children) do
+      table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+    end
+  end
+  return result
+end
+
 function DataNode:createChildNodeList()
   local kind = self:kind()
   if kind == NodeKind.Workspace then
@@ -106,10 +142,17 @@ function DataNode:createChildNodeList()
           table.insert(result, M.createNode(child, self, self, nil))
         end
       end
+
       if #packageData > 0 then
-        local data = hieararchicalPackageNodeData.createHierarchicalNodeDataByPackageList(packageData)
-        if data and data.children then
-          for _, child in ipairs(data.children) do
+        if M.isHierarchicalView then
+          local data = hieararchicalPackageNodeData.createHierarchicalNodeDataByPackageList(packageData)
+          if data and data.children then
+            for _, child in ipairs(data.children) do
+              table.insert(result, M.createNode(child, self, self, self))
+            end
+          end
+        else
+          for _, child in ipairs(packageData) do
             table.insert(result, M.createNode(child, self, self, self))
           end
         end
@@ -125,21 +168,29 @@ function DataNode:createChildNodeList()
     end
     return result
   elseif kind == NodeKind.PackageRoot then
-    local result = {}
-    if self._nodeData.children then
-      for _, child in ipairs(self._nodeData.children) do
-        table.insert(result, M.createNode(child, self, self._project, self))
+    if M.isHierarchicalView then
+      return self:createHierarchicalPackageRootNode()
+    else
+      local result = {}
+      if self._nodeData.children then
+        for _, child in ipairs(self._nodeData.children) do
+          table.insert(result, M.createNode(child, self, self._project, self))
+        end
       end
+      return result
     end
-    return result
   elseif kind == NodeKind.Package then
-    local result = {}
-    if self._nodeData.children then
-      for _, child in ipairs(self._nodeData.children) do
-        table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+    if M.isHierarchicalView then
+      return self:createHierarchicalPackageNode()
+    else
+      local result = {}
+      if self._nodeData.children then
+        for _, child in ipairs(self._nodeData.children) do
+          table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+        end
       end
+      return result
     end
-    return result
   elseif kind == NodeKind.Folder then
     local result = {}
     if self._nodeData.children then
@@ -154,7 +205,6 @@ function DataNode:createChildNodeList()
     return nil
   end
 end
-
 function DataNode:loadData()
   local kind = self:kind()
   if kind == NodeKind.Workspace then
@@ -176,7 +226,7 @@ function DataNode:loadData()
       projectUri = self._project._nodeData.uri,
       rootPath = self._nodeData.path,
       handlerIdentifier = self._nodeData.handlerIdentifier,
-      isHierarchicalView = true,
+      isHierarchicalView = M.isHierarchicalView,
     })
   elseif kind == NodeKind.Package then
     return jdtls.getPackageData({
@@ -284,21 +334,26 @@ function DataNode:revealPaths(paths)
       table.remove(paths, 1)
     end
     return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
-  elseif kind == NodeKind.PackageRoot and self._hierarchicalPackageRootNode then
-    local hierarchicalNodeData = paths[1]
-    ---@type DataNode[]
-    local children = self:getChildren()
-    ---@type DataNode[]?
-    local childNode = vim.tbl_filter(function(child)
-      return vim.startswith(hierarchicalNodeData.name, child._nodeData.name .. ".")
-        or hierarchicalNodeData.name == child._nodeData.name
-    end, children)
-    ---@type DataNode?
-    childNode = (childNode and #childNode > 0) and childNode[1] or nil
-    if childNode and not childNode._hierarchicalPackageNode then
-      table.remove(paths, 1)
+  elseif kind == NodeKind.PackageRoot then
+    if self._hierarchicalPackageRootNode then
+      local hierarchicalNodeData = paths[1]
+
+      ---@type DataNode[]
+      local children = self:getChildren()
+      ---@type DataNode[]?
+      local childNode = vim.tbl_filter(function(child)
+        return vim.startswith(hierarchicalNodeData.name, child._nodeData.name .. ".")
+          or hierarchicalNodeData.name == child._nodeData.name
+      end, children)
+      ---@type DataNode?
+      childNode = (childNode and #childNode > 0) and childNode[1] or nil
+      if childNode and not childNode._hierarchicalPackageNode then
+        table.remove(paths, 1)
+      end
+      return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+    else
+      return self:baseRevealPaths(paths)
     end
-    return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
   elseif kind == NodeKind.Package and self._hierarchicalPackageNode then
     local hierarchicalNodeData = paths[1]
     if hierarchicalNodeData.name == self._nodeData.name then
@@ -313,7 +368,7 @@ function DataNode:revealPaths(paths)
           or hierarchicalNodeData.name == child._nodeData.name
       end, children)
       ---@type DataNode?
-      childNode = childNode and #childNode > 0 and childNode[1] or nil
+      childNode = (childNode and #childNode > 0) and childNode[1] or nil
       return (childNode and #paths > 0) and childNode:revealPaths(paths) or nil
     end
   else
@@ -386,7 +441,9 @@ M.createNode = function(nodeData, parent, project, rootNode)
       return nil
     end
     local data = DataNode:new(nodeData, parent, project, rootNode)
-    data._hierarchicalPackageRootNode = true
+    if M.isHierarchicalView then
+      data._hierarchicalPackageRootNode = true
+    end
     return data
   elseif nodeData.kind == NodeKind.Package then
     if not parent or not project or not rootNode then
@@ -394,7 +451,9 @@ M.createNode = function(nodeData, parent, project, rootNode)
       return nil
     end
     local data = DataNode:new(nodeData, parent, project, rootNode)
-    data._hierarchicalPackageNode = true
+    if M.isHierarchicalView then
+      data._hierarchicalPackageNode = true
+    end
     return data
   elseif nodeData.kind == NodeKind.PrimaryType then
     if nodeData.metaData and nodeData.metaData[M.K_TYPE_KIND] then
