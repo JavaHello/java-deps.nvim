@@ -1,4 +1,4 @@
-local lsp_command = require("java-deps.lsp-command")
+local lsp_command = require("java-deps.java.lsp-command")
 local node_data = require("java-deps.java.nodeData")
 local NodeKind = node_data.NodeKind
 local M = {}
@@ -14,7 +14,7 @@ M.getProjects = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return resp or {}
+  return node_data.generateNodeList(resp)
 end
 M.root_dir = function()
   return lsp_command.get_client().root_dir
@@ -43,7 +43,7 @@ M.getPackageData = function(params)
     return {}
   end
   ---@type INodeData[]
-  local nodeDatas = resp and resp or {}
+  local nodeDatas = node_data.generateNodeList(resp)
   -- Filter out non java resources
   if true then
     nodeDatas = vim.tbl_filter(function(data)
@@ -89,6 +89,6 @@ M.resolvePath = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return resp or {}
+  return node_data.generateNodeList(resp)
 end
 return M

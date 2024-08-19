@@ -19,6 +19,7 @@ local TreeItem = {}
 ---@class DataProvider
 ---@field rootPath string
 ---@field currentPath string
+---@field currentNodeData INodeData?
 ---@field _rootItems DataNode[]?
 local DataProvider = {}
 DataProvider.__index = DataProvider
@@ -54,10 +55,11 @@ function DataProvider:_revealPaths(projects)
   end
   ---@type INodeData[]
   local rpath = jdtls.resolvePath(self.currentPath)
+  self.currentNodeData = rpath and #rpath > 0 and rpath[#rpath] or nil
   ---@type INodeData
   local cpath = (rpath and #rpath > 0) and table.remove(rpath, 1) or nil
   for _, root in ipairs(project_nodes) do
-    if cpath and cpath.name == root._nodeData.name and cpath.path == root._nodeData.path then
+    if cpath and cpath:getName() == root._nodeData:getName() and cpath:getPath() == root._nodeData:getPath() then
       root:revealPaths(rpath)
       break
     end
@@ -72,33 +74,48 @@ function DataProvider:revealPaths()
 end
 
 ---@param nodes DataNode[]
----@return TreeItem[]
-local function _flattenTree(nodes, _level, hierarchy)
-  local level = _level or 0
-  local result = {}
+local function _flattenTree(result, nodes, level, hierarchy)
+  if not nodes or #nodes == 0 then
+    return
+  end
   for idx, node in ipairs(nodes) do
     local c = node:getTreeItem()
-    local _hierarchy = hierarchy or {}
     c.depth = level
     if idx == #nodes then
-      _hierarchy[level] = false
+      hierarchy[level] = false
       c.isLast = true
     end
-    c.hierarchy = vim.deepcopy(_hierarchy)
+    c.hierarchy = vim.deepcopy(hierarchy)
     table.insert(result, c)
-    if node:hasChildren() then
-      local children = _flattenTree(node._childrenNodes, level + 1, _hierarchy)
-      for _, child in ipairs(children) do
-        table.insert(result, child)
-      end
+    if node._childrenNodes and #node._childrenNodes > 0 then
+      c.collapsibleState = data_node.TreeItemCollapsibleState.Expanded
+      _flattenTree(result, node._childrenNodes, level + 1, hierarchy)
     end
   end
-  return result
 end
 
 ---@return TreeItem[]
 function DataProvider:flattenTree()
-  return _flattenTree(self._rootItems, 0, nil)
+  local result = {}
+  _flattenTree(result, self._rootItems, 0, {})
+  return result
+end
+
+---获取当前节点位置
+---@param treeItems TreeItem[]
+function DataProvider:findCurrentNode(treeItems)
+  if not treeItems or #treeItems == 0 then
+    return
+  end
+  for idx, item in ipairs(treeItems) do
+    if
+      item.data
+      and item.data._nodeData:getName() == self.currentNodeData:getName()
+      and item.data._nodeData:getPath() == self.currentNodeData:getPath()
+    then
+      return idx, item
+    end
+  end
 end
 
 M.DataProvider = DataProvider

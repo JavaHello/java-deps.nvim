@@ -1,5 +1,6 @@
 local parser = require("java-deps.parser")
 local config = require("java-deps.config")
+local highlight = require("java-deps.highlight")
 
 local M = {}
 
@@ -10,8 +11,6 @@ local function is_buffer_outline(bufnr)
   return string.match(name, "JavaProjects") ~= nil and ft == "JavaProjects" and isValid
 end
 
-local hlns = vim.api.nvim_create_namespace("java-deps-outline-icon-highlight")
-
 function M.write_outline(bufnr, lines)
   if not is_buffer_outline(bufnr) then
     return
@@ -21,35 +20,19 @@ function M.write_outline(bufnr, lines)
   vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
 end
 
-function M.add_highlights(bufnr, hl_info, nodes)
-  for _, line_hl in ipairs(hl_info) do
-    local line, hl_start, hl_end, hl_type = unpack(line_hl)
-    vim.api.nvim_buf_add_highlight(bufnr, hlns, hl_type, line - 1, hl_start, hl_end)
-  end
-
-  M.add_hover_highlights(bufnr, nodes)
-end
-
-local ns = vim.api.nvim_create_namespace("java-deps-outline-virt-text")
-
 function M.write_details(bufnr, lines)
   if not is_buffer_outline(bufnr) then
     return
   end
 
   for index, value in ipairs(lines) do
-    vim.api.nvim_buf_set_extmark(bufnr, ns, index - 1, -1, {
-      virt_text = { { value, "Comment" } },
+    vim.api.nvim_buf_set_extmark(bufnr, highlight.vt.nsid, index - 1, -1, {
+      virt_text = { { value, "JavaDepsComment" } },
       virt_text_pos = "eol",
       hl_mode = "combine",
     })
   end
 end
-
-local function clear_virt_text(bufnr)
-  vim.api.nvim_buf_clear_namespace(bufnr, -1, 0, -1)
-end
-
 
 ---@param bufnr integer
 ---@param flattened_outline_items TreeItem
@@ -57,8 +40,8 @@ function M.parse_and_write(bufnr, flattened_outline_items)
   local lines, hl_info = parser.get_lines(flattened_outline_items)
   M.write_outline(bufnr, lines)
 
-  clear_virt_text(bufnr)
-  M.add_highlights(bufnr, hl_info, flattened_outline_items)
+  highlight.clear_virt_text(bufnr)
+  highlight.add_icon_highlights(bufnr, hl_info, flattened_outline_items)
   if config.options.show_path_details then
     local details = parser.get_details(flattened_outline_items)
     M.write_details(bufnr, details)

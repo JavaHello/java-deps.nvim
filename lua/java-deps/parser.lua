@@ -45,26 +45,21 @@ function M.get_lines(flattened_outline_items)
         node_line,
         from,
         to,
-        "JavaDespOutlineConnector",
+        "JavaDepsLineGuide",
       })
     end
 
     for index, _ in ipairs(line) do
       -- all items start with a space (or two)
       if config.options.show_guides then
-        -- makes the guides
-        if index == 1 then
-          line[index] = " "
-          -- i f index is last, add a bottom marker if current item is last,
-          -- else add a middle marker
-        elseif index == #line then
+        if index == #line then
           -- add fold markers
           local folded = data_node.is_folded(node)
           if config.options.fold_markers and folded then
-            if folded then
-              line[index] = config.options.fold_markers[1]
-            else
+            if data_node.is_expanded(node) then
               line[index] = config.options.fold_markers[2]
+            else
+              line[index] = config.options.fold_markers[1]
             end
 
             add_guide_hl(running_length, running_length + vim.fn.strlen(line[index]) - 1)

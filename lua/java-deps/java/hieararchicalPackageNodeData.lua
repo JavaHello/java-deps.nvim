@@ -6,7 +6,7 @@ local M = {}
 ---@class HierarchicalPackageNodeData: INodeData
 ---@field displayName string
 ---@field name string
----@field nodeData? INodeData
+---@field _nodeData? INodeData
 ---@field children HierarchicalPackageNodeData[]
 local HierarchicalPackageNodeData = INodeData:new()
 HierarchicalPackageNodeData.__index = HierarchicalPackageNodeData
@@ -28,23 +28,23 @@ function HierarchicalPackageNodeData:compressTree()
     local child = self.children[1]
     self.name = self.name .. "." .. child.displayName
     self.displayName = self.displayName .. "." .. child.displayName
-    self.children = self.children
-    self.nodeData = self.nodeData
+    self.children = child.children
+    self._nodeData = child._nodeData
   end
   for _, child in ipairs(self.children) do
     child:compressTree()
   end
 end
 ---@param packages string[]
----@param _nodeData INodeData
-function HierarchicalPackageNodeData:addSubPackage(packages, _nodeData)
+---@param nodeData INodeData
+function HierarchicalPackageNodeData:addSubPackage(packages, nodeData)
   if #packages == 0 then
-    self.nodeData = _nodeData
-    -- TODO
+    self._nodeData = nodeData
     return
   end
   local subPackageDisplayName = table.remove(packages, 1)
-  local childNode = nil
+  ---@type HierarchicalPackageNodeData?
+  local childNode
   for _, child in ipairs(self.children) do
     if child.displayName == subPackageDisplayName then
       childNode = child
@@ -52,35 +52,52 @@ function HierarchicalPackageNodeData:addSubPackage(packages, _nodeData)
     end
   end
   if childNode then
-    childNode:addSubPackage(packages, _nodeData)
+    childNode:addSubPackage(packages, nodeData)
   else
     local newNode = HierarchicalPackageNodeData:new(subPackageDisplayName, self.name)
-    newNode:addSubPackage(packages, _nodeData)
+    newNode:addSubPackage(packages, nodeData)
     table.insert(self.children, newNode)
   end
 end
-function HierarchicalPackageNodeData:get_getUri()
-  return self.nodeData and self.nodeData.uri
-end
-function HierarchicalPackageNodeData:get_moduleName()
-  return self.nodeData and self.nodeData.moduleName
-end
-
-function HierarchicalPackageNodeData:get_path()
-  return self.nodeData and self.nodeData.path
-end
-
-function HierarchicalPackageNodeData:get_kind()
-  return self.nodeData and self.nodeData.kind or NodeKind.Package
-end
 
 function HierarchicalPackageNodeData:isPackage()
-  return self.nodeData ~= nil
+  return self._nodeData ~= nil
 end
 
-function HierarchicalPackageNodeData:handlerIdentifier()
-  return self.nodeData and self.nodeData.handlerIdentifier
+function HierarchicalPackageNodeData:getDisplayName()
+  return self.displayName
 end
+
+function HierarchicalPackageNodeData:getName()
+  return self.name
+end
+function HierarchicalPackageNodeData:getModuleName()
+  return self._nodeData and self._nodeData.moduleName
+end
+function HierarchicalPackageNodeData:getPath()
+  return self._nodeData and self._nodeData.path
+end
+
+function HierarchicalPackageNodeData:getHandlerIdentifier()
+  return self._nodeData and self._nodeData.handlerIdentifier
+end
+
+function HierarchicalPackageNodeData:getUri()
+  return self._nodeData and self._nodeData.uri
+end
+
+function HierarchicalPackageNodeData:getKind()
+  return self._nodeData and self._nodeData.kind
+end
+
+function HierarchicalPackageNodeData:getChildren()
+  return self.children
+end
+
+function HierarchicalPackageNodeData:getMetaData()
+  return self._nodeData and self._nodeData.metaData
+end
+
 M.HierarchicalPackageNodeData = HierarchicalPackageNodeData
 
 ---@param packageList INodeData[]

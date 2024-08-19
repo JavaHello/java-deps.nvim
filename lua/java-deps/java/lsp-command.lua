@@ -18,7 +18,8 @@ M.get_client = function()
   return clients[1]
 end
 
-M.execute_command = function(command, callback, bufnr)
+-- 使用异步没有错误信输出
+M.execute_command_async = function(command, callback, bufnr)
   local client = M.get_client()
   if not client then
     return
@@ -36,6 +37,20 @@ M.execute_command = function(command, callback, bufnr)
   if co then
     return coroutine.yield()
   end
+end
+M.execute_command = function(command, bufnr)
+  if config.async then
+    return M.execute_command_async(command, nil, bufnr)
+  end
+  local client = M.get_client()
+  if not client then
+    return
+  end
+  local resp = client.request_sync("workspace/executeCommand", command, 20000, bufnr)
+  if not resp then
+    return "No response"
+  end
+  return nil, resp.result
 end
 
 return M

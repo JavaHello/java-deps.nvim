@@ -3,6 +3,7 @@ local config = require("java-deps.config")
 ---@class View
 ---@field bufnr number
 ---@field winnr number
+---@field data_provider DataProvider
 local View = {}
 View.__index = View
 

@@ -3,6 +3,12 @@ local config = require("java-deps.config")
 local View = require("java-deps.view")
 local provider = require("java-deps.views.data_provider")
 local writer = require("java-deps.writer")
+local mappings = require("java-deps.mappings")
+local highlight = require("java-deps.highlight")
+-- debug
+vim.g.java_deps = {
+  debug = true,
+}
 
 local M = {
   view = nil,
@@ -22,8 +28,12 @@ local function handle_projects()
   local data = provider.DataProvider:new(uri, M.state.current_path)
   data:revealPaths()
   local result = data:flattenTree()
-  vim.print(vim.inspect(result))
+  local idx, item = data:findCurrentNode(result)
   writer.parse_and_write(M.view.bufnr, result)
+  -- 设置光标位置
+  if idx and item then
+    vim.api.nvim_win_set_cursor(M.view.winnr, { idx, 0 })
+  end
 end
 
 function M.toggle_outline()
@@ -39,12 +49,19 @@ function M.open_outline()
     M.state.code_buf = vim.api.nvim_get_current_buf()
     M.state.current_path = vim.uri_from_bufnr(M.state.code_buf)
     M.view:open()
-    local wf = coroutine.wrap(function()
+    mappings.init_mappings(M.view)
+    writer.write_outline(M.view.bufnr, { "Loading..." })
+    if config.async then
+      local wf = coroutine.wrap(function()
+        handle_projects()
+      end)
+      xpcall(wf, function(err)
+        if err then
+          print(err.message or vim.inspect(err))
+        end
+      end)
+    else
       handle_projects()
-    end)
-    local ok, err = pcall(wf)
-    if not ok then
-      print(err.message or vim.inspect(err))
     end
   end
 end
@@ -56,6 +73,7 @@ end
 function M.setup(opts)
   config.setup(opts)
   M.view = View:new()
+  highlight.init_hl()
 end
 
 return M

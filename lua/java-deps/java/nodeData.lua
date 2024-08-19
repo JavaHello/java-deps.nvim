@@ -36,8 +36,53 @@ function INodeData:new()
   return setmetatable({}, self)
 end
 
-function INodeData:print()
-  print(vim.inspect(self))
+function INodeData:form(resp)
+  return setmetatable(resp, self)
+end
+---@param resp table?
+---@return INodeData[]
+M.generateNodeList = function(resp)
+  if not resp then
+    return {}
+  end
+  local nodes = {}
+  for _, node in ipairs(resp) do
+    table.insert(nodes, INodeData:form(node))
+  end
+  return nodes
+end
+function INodeData:getDisplayName()
+  return self.displayName
+end
+
+function INodeData:getName()
+  return self.name
+end
+function INodeData:getModuleName()
+  return self.moduleName
+end
+function INodeData:getPath()
+  return self.path
+end
+
+function INodeData:getHandlerIdentifier()
+  return self.handlerIdentifier
+end
+
+function INodeData:getUri()
+  return self.uri
+end
+
+function INodeData:getKind()
+  return self.kind
+end
+
+function INodeData:getChildren()
+  return self.children
+end
+
+function INodeData:getMetaData()
+  return self.metaData
 end
 
 M.INodeData = INodeData
