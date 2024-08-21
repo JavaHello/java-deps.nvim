@@ -1,6 +1,7 @@
 local _n = require("java-deps.java.nodeData")
-local NodeKind = _n.NodeKind
+local _ipkg = require("java-deps.java.IPackageRootNodeData")
 local INodeData = _n.INodeData
+local IPackageRootNodeData = _ipkg.IPackageRootNodeData
 local M = {}
 
 ---@class HierarchicalPackageNodeData: INodeData
@@ -96,6 +97,10 @@ end
 
 function HierarchicalPackageNodeData:getMetaData()
   return self._nodeData and self._nodeData.metaData
+end
+
+function HierarchicalPackageNodeData:getEntryKind()
+  return self._nodeData and IPackageRootNodeData:form(self._nodeData):getEntryKind()
 end
 
 M.HierarchicalPackageNodeData = HierarchicalPackageNodeData

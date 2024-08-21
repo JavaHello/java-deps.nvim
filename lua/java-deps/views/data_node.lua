@@ -70,6 +70,7 @@ end
 ---@field _rootNode DataNode?
 ---@field _hierarchicalPackageNode boolean
 ---@field _hierarchicalPackageRootNode boolean
+---@field _collapsibleState TreeItemCollapsibleState
 local DataNode = ExplorerNode:new()
 
 DataNode.__index = DataNode
@@ -88,6 +89,25 @@ function DataNode:new(nodeData, parent, project, rootNode)
   data._project = project
   data._rootNode = rootNode
   return data
+end
+
+---@class TreeItem
+---@field label? string
+---@field id? string
+---@field icon? string
+---@field depth? number
+---@field description? string
+---@field resourceUri? string
+---@field command? string
+---@field isLast? boolean
+---@field data? DataNode
+---@field hierarchy? table
+local TreeItem = {}
+
+TreeItem.__index = TreeItem
+
+function TreeItem:new()
+  return setmetatable({}, self)
 end
 
 ---@return DataNode[]
@@ -320,6 +340,7 @@ function DataNode:revealPaths(paths)
   if #paths == 0 then
     return self
   end
+  self._collapsibleState = M.TreeItemCollapsibleState.Expanded
   local kind = self:kind()
   if kind == NodeKind.Project then
     if not self._nodeData:getUri() then
@@ -534,27 +555,74 @@ function DataNode:hasChildren()
   return true
 end
 
-
----@param tree TreeItem
----@return boolean
-function M.is_folded(tree)
-  return tree.collapsibleState == M.TreeItemCollapsibleState.Collapsed
-    or tree.collapsibleState == M.TreeItemCollapsibleState.Expanded
+---@return TreeItemCollapsibleState
+function DataNode:collapsibleState()
+  if not self._collapsibleState then
+    if self:hasChildren() then
+      self._collapsibleState = M.TreeItemCollapsibleState.Collapsed
+    end
+  end
+  return self._collapsibleState
 end
----@param tree TreeItem
+
+function TreeItem:collapsibleState()
+  return self.data:collapsibleState()
+end
+
 ---@return boolean
-function M.is_expanded(tree)
-  return tree.collapsibleState == M.TreeItemCollapsibleState.Expanded
+function TreeItem:is_foldable()
+  return self:collapsibleState() == M.TreeItemCollapsibleState.Collapsed
+    or self:collapsibleState() == M.TreeItemCollapsibleState.Expanded
+end
+---@return boolean
+function TreeItem:is_expanded()
+  return self:collapsibleState() == M.TreeItemCollapsibleState.Expanded
+end
+---@return boolean
+function TreeItem:is_collapsed()
+  return self:collapsibleState() == M.TreeItemCollapsibleState.Collapsed
+end
+
+function TreeItem:expanded()
+  if not self:is_foldable() then
+    return
+  end
+  if self:is_expanded() then
+    return
+  end
+  self.data._collapsibleState = M.TreeItemCollapsibleState.Expanded
+  self.data:getChildren()
+end
+
+function TreeItem:collapsed()
+  if not self:is_foldable() then
+    return
+  end
+  if self:is_collapsed() then
+    return
+  end
+  self.data._collapsibleState = M.TreeItemCollapsibleState.Collapsed
+end
+
+function TreeItem:foldToggle()
+  if self:is_expanded() then
+    self:collapsed()
+  else
+    self:expanded()
+  end
+end
+
+---是否是文件可以打开
+function TreeItem:canOpen()
+  local kind = self.data:kind()
+  return kind == NodeKind.PrimaryType or kind == NodeKind.ClassFile or kind == NodeKind.File
 end
 
 function DataNode:getTreeItem()
-  ---@type TreeItem
-  local item = {
-    label = self._nodeData:getDisplayName() or self._nodeData:getName(),
-    collapsibleState = self:hasChildren() and M.TreeItemCollapsibleState.Collapsed or M.TreeItemCollapsibleState.None,
-  }
+  local item = TreeItem:new()
+  item.label = self._nodeData:getDisplayName() or self._nodeData:getName()
   item.description = self:description()
-  item.icon = self:icon()
+  -- item.icon = self:icon()
   item.command = self:command()
   item.data = self
   if self._nodeData:getUri() then

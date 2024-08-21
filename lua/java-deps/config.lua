@@ -1,11 +1,9 @@
 local M = {
-  async = false,
   jdtls_name = "jdtls",
   options = {
     show_guides = true,
-    show_path_details = true,
     auto_close = false,
-    width = 32,
+    width = 40,
     show_numbers = false,
     show_relative_numbers = false,
     preview_bg_highlight = "Pmenu",
@@ -14,22 +12,13 @@ local M = {
     position = "right",
     wrap = false,
     hierarchical_view = true,
-    keymaps = { -- These keymaps can be a string or a table for multiple keys
-      open_file = "o",
-      close = { "<Esc>", "q" },
-      show_help = "?",
-      toggle_preview = "K",
-      fold = "h",
-      unfold = "l",
-      fold_reset = "R",
+    keymaps = {
+      close = "q",
+      toggle_fold = "o",
     },
     symbols = {
-      CLASS = { icon = "󰠱", hl = "@class" },
-      ENUM = { icon = "", hl = "@enum" },
-      INTERFACE = { icon = "", hl = "@interface" },
-      JAR = { icon = "", hl = "@conditional" },
+      icons = {},
     },
-    symbol_blacklist = {},
   },
 }
 M.setup = function(config)
@@ -40,22 +29,6 @@ end
 
 function M.has_numbers()
   return M.options.show_numbers or M.options.show_relative_numbers
-end
-local function has_value(tab, val)
-  for _, value in ipairs(tab) do
-    if value == val then
-      return true
-    end
-  end
-
-  return false
-end
-
-function M.is_symbol_blacklisted(kind)
-  if kind == nil then
-    return false
-  end
-  return has_value(M.options.symbol_blacklist, kind)
 end
 
 function M.show_help()

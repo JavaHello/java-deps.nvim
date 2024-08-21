@@ -2,75 +2,53 @@ local jdtls = require("java-deps.java.jdtls")
 local data_node = require("java-deps.views.data_node")
 local M = {}
 
----@class TreeItem
----@field label? string
----@field id? string
----@field icon? string
----@field depth? number
----@field description? string
----@field resourceUri? string
----@field command? string
----@field collapsibleState? TreeItemCollapsibleState
----@field isLast? boolean
----@field data? DataNode
----@field hierarchy? table
-local TreeItem = {}
-
 ---@class DataProvider
 ---@field rootPath string
----@field currentPath string
----@field currentNodeData INodeData?
----@field _rootItems DataNode[]?
+---@field revealNode INodeData?
+---@field _rootProjects DataNode[]?
 local DataProvider = {}
 DataProvider.__index = DataProvider
 
-function DataProvider:new(rootPath, currentPath)
+function DataProvider:new(rootPath)
   return setmetatable({
     rootPath = rootPath,
-    currentPath = currentPath,
-    _rootItems = {},
+    _rootProjects = {},
   }, self)
 end
----@return INodeData[]?
-function DataProvider:getRootNodes()
-  return jdtls.getProjects(self.rootPath)
-end
 
----@param projects? INodeData[]
----@return DataNode[]?
-function DataProvider:_revealPaths(projects)
-  if not projects or #projects == 0 then
-    return
+---@return DataNode[]
+function DataProvider:getRootProjects()
+  if self._rootProjects and #self._rootProjects > 0 then
+    return self._rootProjects
   end
 
-  ---@type DataNode[]
-  local project_nodes = {}
-  for _, project in ipairs(projects) do
+  local rootProjects = {}
+  for _, project in ipairs(jdtls.getProjects(self.rootPath)) do
     if project then
       local root = data_node.createNode(project)
       if root then
-        table.insert(project_nodes, root)
+        table.insert(rootProjects, root)
       end
     end
   end
+  self._rootProjects = rootProjects
+  return rootProjects
+end
+
+function DataProvider:revealPaths(paths)
   ---@type INodeData[]
-  local rpath = jdtls.resolvePath(self.currentPath)
-  self.currentNodeData = rpath and #rpath > 0 and rpath[#rpath] or nil
+  local rpath = paths or {}
+  self.revealNode = rpath and #rpath > 0 and rpath[#rpath] or nil
   ---@type INodeData
   local cpath = (rpath and #rpath > 0) and table.remove(rpath, 1) or nil
-  for _, root in ipairs(project_nodes) do
+
+  local projects = self:getRootProjects()
+  for _, root in ipairs(projects) do
     if cpath and cpath:getName() == root._nodeData:getName() and cpath:getPath() == root._nodeData:getPath() then
       root:revealPaths(rpath)
       break
     end
   end
-  self._rootItems = project_nodes
-  return project_nodes
-end
-
----@return DataNode[]?
-function DataProvider:revealPaths()
-  return self:_revealPaths(self:getRootNodes())
 end
 
 ---@param nodes DataNode[]
@@ -80,38 +58,39 @@ local function _flattenTree(result, nodes, level, hierarchy)
   end
   for idx, node in ipairs(nodes) do
     local c = node:getTreeItem()
+    c.hierarchy = vim.deepcopy(hierarchy)
     c.depth = level
     if idx == #nodes then
-      hierarchy[level] = false
+      -- 如果是最后一个节点, 子节点不需要再画竖线
+      c.hierarchy[level] = true
       c.isLast = true
     end
-    c.hierarchy = vim.deepcopy(hierarchy)
     table.insert(result, c)
-    if node._childrenNodes and #node._childrenNodes > 0 then
-      c.collapsibleState = data_node.TreeItemCollapsibleState.Expanded
-      _flattenTree(result, node._childrenNodes, level + 1, hierarchy)
+    if node._childrenNodes and #node._childrenNodes > 0 and c:is_expanded() then
+      _flattenTree(result, node._childrenNodes, level + 1, c.hierarchy)
     end
   end
 end
 
 ---@return TreeItem[]
 function DataProvider:flattenTree()
+  ---@type TreeItem[]
   local result = {}
-  _flattenTree(result, self._rootItems, 0, {})
+  _flattenTree(result, self:getRootProjects(), 0, {})
   return result
 end
 
 ---获取当前节点位置
 ---@param treeItems TreeItem[]
-function DataProvider:findCurrentNode(treeItems)
+function DataProvider:findRevealNode(treeItems)
   if not treeItems or #treeItems == 0 then
     return
   end
   for idx, item in ipairs(treeItems) do
     if
       item.data
-      and item.data._nodeData:getName() == self.currentNodeData:getName()
-      and item.data._nodeData:getPath() == self.currentNodeData:getPath()
+      and item.data._nodeData:getName() == self.revealNode:getName()
+      and item.data._nodeData:getPath() == self.revealNode:getPath()
     then
       return idx, item
     end

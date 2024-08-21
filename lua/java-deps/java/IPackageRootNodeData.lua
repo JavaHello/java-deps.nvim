@@ -15,6 +15,20 @@ function IPackageRootNodeData:new()
   return setmetatable(INodeData:new(), self)
 end
 
+---@param node INodeData
+---@return IPackageRootNodeData
+function IPackageRootNodeData:form(node)
+  return setmetatable(node, self)
+end
+
+function IPackageRootNodeData:getEntryKind()
+  return self.entryKind
+end
+
+function IPackageRootNodeData:getAttributes()
+  return self.attributes
+end
+
 M.IPackageRootNodeData = IPackageRootNodeData
 
 return M

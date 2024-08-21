@@ -39,9 +39,6 @@ M.execute_command_async = function(command, callback, bufnr)
   end
 end
 M.execute_command = function(command, bufnr)
-  if config.async then
-    return M.execute_command_async(command, nil, bufnr)
-  end
   local client = M.get_client()
   if not client then
     return
