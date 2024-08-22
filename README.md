@@ -1,10 +1,5 @@
 # Java Projects
 
-- 使用 [symbols-outline](https://github.com/simrat39/symbols-outline.nvim) 代码实现预览
-- [vscode-java-dependency](https://github.com/Microsoft/vscode-java-dependency) 提供数据支持
-
-![java-deps](https://javahello.github.io/dev/nvim-lean/images/java-deps.png)
-
 ## 安装
 
 [English](https://github.com/JavaHello/java-deps.nvim/issues/2)
@@ -24,7 +19,7 @@
 
 ```
 
-- 手动编译 `vscode-java-dependency`
+- 手动编译 `vscode-java-dependency` (可选)
 
 ```sh
 git clone https://github.com/microsoft/vscode-java-dependency.git
@@ -33,7 +28,7 @@ npm install
 npm run build-server
 ```
 
-- 将 `vscode-java-dependency` 编译后的 `jar` 添加到 jdtls_config["init_options"].bundles 中
+- 将 `vscode-java-dependency` 的 `jar` 包添加到 jdtls_config["init_options"].bundles 中
 
 ```lua
 local jdtls_config = {}
@@ -56,11 +51,10 @@ jdtls_config["init_options"] = {
 }
 ```
 
-- 添加 attach
+- 添加命令
 
 ```lua
 jdtls_config["on_attach"] = function(client, buffer)
-  require("java-deps").attach(client, buffer)
   -- 添加命令
   local create_command = vim.api.nvim_buf_create_user_command
   create_command(buffer, "JavaProjects", require("java-deps").toggle_outline, {
@@ -76,3 +70,8 @@ end
 :lua require('java-deps').open_outline()
 :lua require('java-deps').close_outline()
 ```
+
+## 参考实现
+
+- 使用 [symbols-outline](https://github.com/simrat39/symbols-outline.nvim) 代码实现预览
+- [vscode-java-dependency](https://github.com/Microsoft/vscode-java-dependency) 提供数据支持
