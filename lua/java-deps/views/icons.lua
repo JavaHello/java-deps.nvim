@@ -11,13 +11,13 @@ local M = {
   NodeKind = {
     [NodeKind.Workspace] = { icon = "", hl = "Type" },
     [NodeKind.Project] = { icon = "" },
-    [NodeKind.PackageRoot] = { icon = "" },
-    [NodeKind.Package] = { icon = "" },
+    [NodeKind.PackageRoot] = { icon = "" },
+    [NodeKind.Package] = { icon = "" },
     [NodeKind.PrimaryType] = { icon = "󰠱" },
     [NodeKind.CompilationUnit] = { icon = "" },
     [NodeKind.ClassFile] = { icon = "" },
     [NodeKind.Container] = { icon = "" },
-    [NodeKind.Folder] = { icon = "󰉋" },
+    [NodeKind.Folder] = { icon = "" },
     [NodeKind.File] = { icon = "󰈙" },
   },
   TypeKind = {
@@ -26,8 +26,8 @@ local M = {
     [TypeKind.Enum] = { icon = "" },
   },
   EntryKind = {
-    [PackageRootKind.K_SOURCE] = { icon = "" },
-    [PackageRootKind.K_BINARY] = { icon = "" },
+    [PackageRootKind.K_SOURCE] = { icon = "" },
+    [PackageRootKind.K_BINARY] = { icon = "" },
   },
 }
 
