@@ -23,7 +23,10 @@ local M = {
 }
 M.setup = function(config)
   if config then
-    M = vim.tbl_extend("force", M, config)
+    local new_config = vim.tbl_deep_extend("force", M, config)
+    for key, value in pairs(new_config) do
+      M[key] = value
+    end
   end
 end
 
