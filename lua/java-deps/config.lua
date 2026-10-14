@@ -12,6 +12,7 @@ local M = {
     position = "right",
     wrap = false,
     hierarchical_view = true,
+    show_non_java_resources = true,
     keymaps = {
       close = "q",
       toggle_fold = "o",
@@ -21,12 +22,16 @@ local M = {
         NodeKind = {},
         TypeKind = {},
         EntryKind = {},
+        ProjectKind = {},
+        ContainerKind = {},
       },
       highlights = {
         default_icon = "Type",
         NodeKind = {},
         TypeKind = {},
         EntryKind = {},
+        ProjectKind = {},
+        ContainerKind = {},
       },
     },
     highlights = {

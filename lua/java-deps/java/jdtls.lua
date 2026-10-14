@@ -1,3 +1,4 @@
+local config = require("java-deps.config")
 local lsp_command = require("java-deps.java.lsp_command")
 local node_data_factory = require("java-deps.java.node_data_factory")
 local NodeKind = require("java-deps.java.enums").NodeKind
@@ -44,8 +45,8 @@ M.get_package_data = function(params)
   end
   ---@type NodeData[]
   local nodeDatas = node_data_factory.create_list(resp)
-  -- Filter out non java resources
-  if true then
+  -- 与 vscode 的 java.project.explorer.showNonJavaResources 一致, 默认显示配置文件等非 java 资源
+  if config.options.show_non_java_resources == false then
     nodeDatas = vim.tbl_filter(function(data)
       return data.kind ~= NodeKind.Folder and data.kind ~= NodeKind.File
     end, nodeDatas)
