@@ -1,132 +1,70 @@
-local node_data = require("java-deps.java.nodeData")
-local NodeKind = node_data.NodeKind
+local config = require("java-deps.config")
+local enums = require("java-deps.java.enums")
+local NodeKind = enums.NodeKind
 local jdtls = require("java-deps.java.jdtls")
-local ExplorerNode = require("java-deps.views.explorer_node").ExplorerNode
-local hieararchicalPackageNodeData = require("java-deps.java.hieararchicalPackageNodeData")
+local ExplorerNode = require("java-deps.views.explorer_node")
+local HierarchicalPackageNodeData = require("java-deps.java.hierarchical_package_node_data")
+local TreeItem = require("java-deps.views.tree_item")
 local icons = require("java-deps.views.icons")
 
-local M = {}
-M.isHierarchicalView = true
-
-M.K_TYPE_KIND = "TypeKind"
-M.NATURE_ID = "NatureId"
-
-M.NatureId = {
-  Maven = "org.eclipse.m2e.core.maven2Nature",
-  Gradle = "org.eclipse.buildship.core.gradleprojectnature",
-  BspGradle = "com.microsoft.gradle.bs.importer.GradleBuildServerProjectNature",
-  UnmanagedFolder = "org.eclipse.jdt.ls.core.unmanagedFolder",
-  Java = "org.eclipse.jdt.core.javanature",
-}
-
-M.ReadableNature = {
-  Maven = "maven",
-  Gradle = "gradle",
-  BspGradle = "bsp-gradle",
-  UnmanagedFolder = "unmanagedFolder",
-  Java = "java",
-}
-M.NatureIdMap = {
-  [M.NatureId.Maven] = M.ReadableNature.Maven,
-  [M.NatureId.Gradle] = M.ReadableNature.Gradle,
-  [M.NatureId.BspGradle] = M.ReadableNature.BspGradle,
-  [M.NatureId.UnmanagedFolder] = M.ReadableNature.UnmanagedFolder,
-  [M.NatureId.Java] = M.ReadableNature.Java,
-}
-
-M.ContainerType = {
-  JRE = "jre",
-  Maven = "maven",
-  Gradle = "gradle",
-  ReferencedLibrary = "referencedLibrary",
-  Unknown = "",
-}
-
-M.ContainerPath = {
-  JRE = "org.eclipse.jdt.launching.JRE_CONTAINER",
-  Maven = "org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER",
-  Gradle = "org.eclipse.buildship.core.gradleclasspathcontainer",
-  ReferencedLibrary = "REFERENCED_LIBRARIES_PATH",
-}
-
----@enum TreeItemCollapsibleState
-M.TreeItemCollapsibleState = {
-  None = 0,
-  Collapsed = 1,
-  Expanded = 2,
-}
-
----@param natureId string
----@return string
-M.getProjectType = function(natureId)
-  return M.NatureIdMap[natureId] or ""
+local CollapsibleState = TreeItem.CollapsibleState
+-- 每次调用时读取, 因为 setup() 通常在模块加载之后执行
+---@return boolean
+local function is_hierarchical_view()
+  return config.options.hierarchical_view ~= false
 end
 
 ---@class DataNode: ExplorerNode
----@field _childrenNodes ExplorerNode[]
----@field _nodeData INodeData
+---@field _childrenNodes DataNode[]
+---@field _nodeData NodeData
 ---@field _parent DataNode?
 ---@field _project DataNode?
 ---@field _rootNode DataNode?
 ---@field _hierarchicalPackageNode boolean
 ---@field _hierarchicalPackageRootNode boolean
 ---@field _collapsibleState TreeItemCollapsibleState
-local DataNode = ExplorerNode:new()
-
+local DataNode = setmetatable({}, { __index = ExplorerNode })
 DataNode.__index = DataNode
 DataNode._hierarchicalPackageNode = false
 DataNode._hierarchicalPackageRootNode = false
 
----@param nodeData INodeData
+---@param nodeData NodeData
 ---@param parent DataNode?
 ---@param project DataNode?
 ---@param rootNode DataNode?
 ---@return DataNode
 function DataNode:new(nodeData, parent, project, rootNode)
-  local data = setmetatable({}, self)
-  data._nodeData = nodeData
-  data._parent = parent
-  data._project = project
-  data._rootNode = rootNode
-  return data
+  return setmetatable({
+    _nodeData = nodeData,
+    _parent = parent,
+    _project = project,
+    _rootNode = rootNode,
+  }, self)
 end
 
----@class TreeItem
----@field label? string
----@field id? string
----@field icon? string
----@field depth? number
----@field description? string
----@field resourceUri? string
----@field command? string
----@field isLast? boolean
----@field data? DataNode
----@field hierarchy? table
-local TreeItem = {}
-
-TreeItem.__index = TreeItem
-
-function TreeItem:new()
-  return setmetatable({}, self)
+---@param natureId string
+---@return string
+function DataNode.get_project_type(natureId)
+  return enums.NatureIdMap[natureId] or ""
 end
 
 ---@return DataNode[]
-function DataNode:createHierarchicalPackageRootNode()
+function DataNode:create_hierarchical_package_root_node()
   local result = {}
   local packageData = {}
   if self._nodeData.children then
     for _, child in ipairs(self._nodeData.children) do
-      if child:getKind() == NodeKind.Package then
+      if child:get_kind() == NodeKind.Package then
         table.insert(packageData, child)
       else
-        table.insert(result, M.createNode(child, self, self._project, self))
+        table.insert(result, DataNode.create(child, self, self._project, self))
       end
     end
     if #packageData > 0 then
-      local data = hieararchicalPackageNodeData.createHierarchicalNodeDataByPackageList(packageData)
+      local data = HierarchicalPackageNodeData.from_package_list(packageData)
       if data and data.children then
         for _, child in ipairs(data.children) do
-          local node = M.createNode(child, self, self._project, self)
+          local node = DataNode.create(child, self, self._project, self)
           table.insert(result, node)
         end
       end
@@ -136,23 +74,23 @@ function DataNode:createHierarchicalPackageRootNode()
 end
 
 ---@return DataNode[]
-function DataNode:createHierarchicalPackageNode()
+function DataNode:create_hierarchical_package_node()
   local result = {}
   if self._nodeData.children then
     for _, child in ipairs(self._nodeData.children) do
-      table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+      table.insert(result, DataNode.create(child, self, self._project, self._rootNode))
     end
   end
   return result
 end
 
-function DataNode:createChildNodeList()
+function DataNode:create_child_node_list()
   local kind = self:kind()
   if kind == NodeKind.Workspace then
     local result = {}
     if self._nodeData.children then
       for _, child in ipairs(self._nodeData.children) do
-        table.insert(result, M.createNode(child, self, nil, nil))
+        table.insert(result, DataNode.create(child, self, nil, nil))
       end
     end
     return result
@@ -161,24 +99,24 @@ function DataNode:createChildNodeList()
     local packageData = {}
     if self._nodeData.children then
       for _, child in ipairs(self._nodeData.children) do
-        if child:getKind() == NodeKind.Package then
+        if child:get_kind() == NodeKind.Package then
           table.insert(packageData, child)
         else
-          table.insert(result, M.createNode(child, self, self, nil))
+          table.insert(result, DataNode.create(child, self, self, nil))
         end
       end
 
       if #packageData > 0 then
-        if M.isHierarchicalView then
-          local data = hieararchicalPackageNodeData.createHierarchicalNodeDataByPackageList(packageData)
+        if is_hierarchical_view() then
+          local data = HierarchicalPackageNodeData.from_package_list(packageData)
           if data and data.children then
             for _, child in ipairs(data.children) do
-              table.insert(result, M.createNode(child, self, self, self))
+              table.insert(result, DataNode.create(child, self, self, self))
             end
           end
         else
           for _, child in ipairs(packageData) do
-            table.insert(result, M.createNode(child, self, self, self))
+            table.insert(result, DataNode.create(child, self, self, self))
           end
         end
       end
@@ -188,30 +126,30 @@ function DataNode:createChildNodeList()
     local result = {}
     if self._nodeData.children then
       for _, child in ipairs(self._nodeData.children) do
-        table.insert(result, M.createNode(child, self, self._project, nil))
+        table.insert(result, DataNode.create(child, self, self._project, nil))
       end
     end
     return result
   elseif kind == NodeKind.PackageRoot then
-    if M.isHierarchicalView then
-      return self:createHierarchicalPackageRootNode()
+    if is_hierarchical_view() then
+      return self:create_hierarchical_package_root_node()
     else
       local result = {}
       if self._nodeData.children then
         for _, child in ipairs(self._nodeData.children) do
-          table.insert(result, M.createNode(child, self, self._project, self))
+          table.insert(result, DataNode.create(child, self, self._project, self))
         end
       end
       return result
     end
   elseif kind == NodeKind.Package then
-    if M.isHierarchicalView then
-      return self:createHierarchicalPackageNode()
+    if is_hierarchical_view() then
+      return self:create_hierarchical_package_node()
     else
       local result = {}
       if self._nodeData.children then
         for _, child in ipairs(self._nodeData.children) do
-          table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+          table.insert(result, DataNode.create(child, self, self._project, self._rootNode))
         end
       end
       return result
@@ -220,7 +158,7 @@ function DataNode:createChildNodeList()
     local result = {}
     if self._nodeData.children then
       for _, child in ipairs(self._nodeData.children) do
-        table.insert(result, M.createNode(child, self, self._project, self._rootNode))
+        table.insert(result, DataNode.create(child, self, self._project, self._rootNode))
       end
     end
     return result
@@ -230,54 +168,50 @@ function DataNode:createChildNodeList()
     return nil
   end
 end
-function DataNode:loadData()
+function DataNode:load_data()
   local kind = self:kind()
   if kind == NodeKind.Workspace then
-    return jdtls.getProjects(self._nodeData:getUri())
+    return jdtls.get_projects(self._nodeData:get_uri())
   elseif kind == NodeKind.Project then
-    return jdtls.getPackageData({
+    return jdtls.get_package_data({
       kind = NodeKind.Project,
-      projectUri = self._nodeData:getUri(),
+      projectUri = self._nodeData:get_uri(),
     })
   elseif kind == NodeKind.Container then
-    return jdtls.getPackageData({
+    return jdtls.get_package_data({
       kind = NodeKind.Container,
-      projectUri = self._project._nodeData:getUri(),
-      path = self._nodeData:getPath(),
+      projectUri = self._project._nodeData:get_uri(),
+      path = self._nodeData:get_path(),
     })
   elseif kind == NodeKind.PackageRoot then
-    return jdtls.getPackageData({
+    return jdtls.get_package_data({
       kind = NodeKind.PackageRoot,
-      projectUri = self._project._nodeData:getUri(),
-      rootPath = self._nodeData:getPath(),
-      handlerIdentifier = self._nodeData:getHandlerIdentifier(),
-      isHierarchicalView = M.isHierarchicalView,
+      projectUri = self._project._nodeData:get_uri(),
+      rootPath = self._nodeData:get_path(),
+      handlerIdentifier = self._nodeData:get_handler_identifier(),
+      isHierarchicalView = is_hierarchical_view(),
     })
   elseif kind == NodeKind.Package then
-    return jdtls.getPackageData({
+    -- 层级视图的中间层(如 com.example)不是真实的包, 子节点已在 children 中
+    if self._nodeData.is_package and not self._nodeData:is_package() then
+      return {}
+    end
+    return jdtls.get_package_data({
       kind = NodeKind.Package,
-      projectUri = self._project._nodeData:getUri(),
-      path = self._nodeData:getName(),
-      handlerIdentifier = self._nodeData:getHandlerIdentifier(),
+      projectUri = self._project._nodeData:get_uri(),
+      path = self._nodeData:get_name(),
+      handlerIdentifier = self._nodeData:get_handler_identifier(),
     })
   elseif kind == NodeKind.Folder then
-    return jdtls.getPackageData({
+    return jdtls.get_package_data({
       kind = NodeKind.Folder,
-      projectUri = self._project._nodeData:getUri(),
-      path = self._nodeData:getPath(),
-      rootPath = self._rootNode and self._rootNode._nodeData:getPath() or nil,
-      handlerIdentifier = self._rootNode and self._rootNode._nodeData:getHandlerIdentifier(),
+      projectUri = self._project._nodeData:get_uri(),
+      path = self._nodeData:get_path(),
+      rootPath = self._rootNode and self._rootNode._nodeData:get_path() or nil,
+      handlerIdentifier = self._rootNode and self._rootNode._nodeData:get_handler_identifier(),
     })
   elseif kind == NodeKind.PrimaryType then
     return nil
-  elseif kind == NodeKind.Folder then
-    return jdtls.getPackageData({
-      kind = NodeKind.Folder,
-      projectUri = self._project._nodeData:getUri(),
-      path = self._nodeData:getPath(),
-      rootPath = self._rootNode and self._rootNode._nodeData:getPath() or nil,
-      handlerIdentifier = self._rootNode and self._rootNode._nodeData:getHandlerIdentifier() or nil,
-    })
   else
     return nil
   end
@@ -287,41 +221,42 @@ function DataNode:icon()
   return icons.get_icon(self)
 end
 function DataNode:kind()
-  return self._nodeData:getKind()
+  return self._nodeData:get_kind()
 end
-function DataNode:typeKind()
-  return self._nodeData:getMetaData() and self._nodeData:getMetaData()[M.K_TYPE_KIND] or nil
+function DataNode:type_kind()
+  return self._nodeData:get_meta_data() and self._nodeData:get_meta_data()[enums.K_TYPE_KIND] or nil
 end
 
 function DataNode:sort()
   table.sort(self._childrenNodes, function(a, b)
     ---@diagnostic disable: undefined-field
-    if a._nodeData:getKind() and b._nodeData:getKind() and a._nodeData:getName() and b._nodeData:getName() then
-      if a._nodeData:getKind() == b._nodeData:getKind() then
-        return a._nodeData:getName() < b._nodeData:getName()
+    if a._nodeData:get_kind() and b._nodeData:get_kind() and a._nodeData:get_name() and b._nodeData:get_name() then
+      if a._nodeData:get_kind() == b._nodeData:get_kind() then
+        return a._nodeData:get_name() < b._nodeData:get_name()
       else
-        return a._nodeData:getKind() < b._nodeData:getKind()
+        return a._nodeData:get_kind() < b._nodeData:get_kind()
       end
     end
     return false
   end)
 end
 
----@param paths INodeData[]
-function DataNode:baseRevealPaths(paths)
+---@param paths NodeData[]
+function DataNode:base_reveal_paths(paths)
   if #paths == 0 then
     return self
   end
   ---@type DataNode[]
   local childNodeData = table.remove(paths, 1)
   ---@type DataNode[]
-  local children = self:getChildren()
+  local children = self:get_children()
   ---@type DataNode[]?
   local childNode = vim.tbl_filter(function(child)
-    return childNodeData:getName() == child._nodeData:getName() and childNodeData:getPath() == child._nodeData:getPath()
+    return childNodeData:get_name() == child._nodeData:get_name()
+      and childNodeData:get_path() == child._nodeData:get_path()
   end, children)
   childNode = (childNode and #childNode > 0) and childNode[1] or nil
-  return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+  return (childNode and #paths > 0) and childNode:reveal_paths(paths) or childNode
 end
 
 ---@param uri string
@@ -335,79 +270,79 @@ local function is_workspace_file(uri)
   return false
 end
 
----@param paths INodeData[]
-function DataNode:revealPaths(paths)
+---@param paths NodeData[]
+function DataNode:reveal_paths(paths)
   if #paths == 0 then
     return self
   end
-  self._collapsibleState = M.TreeItemCollapsibleState.Expanded
+  self._collapsibleState = CollapsibleState.Expanded
   local kind = self:kind()
   if kind == NodeKind.Project then
-    if not self._nodeData:getUri() then
+    if not self._nodeData:get_uri() then
       return
     end
 
-    if is_workspace_file(self._nodeData:getUri()) then
-      return self:baseRevealPaths(paths)
+    if is_workspace_file(self._nodeData:get_uri()) then
+      return self:base_reveal_paths(paths)
     end
 
     local childNodeData = paths[1]
     ---@type DataNode[]
-    local children = self:getChildren()
+    local children = self:get_children()
     ---@type DataNode[]?
     local childNode = vim.tbl_filter(function(child)
-      return vim.startswith(childNodeData:getName(), child._nodeData:getName() .. ".")
-        or childNodeData:getName() == child._nodeData:getName()
+      return vim.startswith(childNodeData:get_name(), child._nodeData:get_name() .. ".")
+        or childNodeData:get_name() == child._nodeData:get_name()
     end, children)
     ---@type DataNode?
     childNode = (childNode and #childNode > 0) and childNode[1] or nil
     if childNode and childNode._hierarchicalPackageNode then
       table.remove(paths, 1)
     end
-    return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+    return (childNode and #paths > 0) and childNode:reveal_paths(paths) or childNode
   elseif kind == NodeKind.PackageRoot then
     if self._hierarchicalPackageRootNode then
       local hierarchicalNodeData = paths[1]
 
       ---@type DataNode[]
-      local children = self:getChildren()
+      local children = self:get_children()
       ---@type DataNode[]?
       local childNode = vim.tbl_filter(function(child)
-        return vim.startswith(hierarchicalNodeData:getName(), child._nodeData:getName() .. ".")
-          or hierarchicalNodeData:getName() == child._nodeData:getName()
+        return vim.startswith(hierarchicalNodeData:get_name(), child._nodeData:get_name() .. ".")
+          or hierarchicalNodeData:get_name() == child._nodeData:get_name()
       end, children)
       ---@type DataNode?
       childNode = (childNode and #childNode > 0) and childNode[1] or nil
       if childNode and not childNode._hierarchicalPackageNode then
         table.remove(paths, 1)
       end
-      return (childNode and #paths > 0) and childNode:revealPaths(paths) or childNode
+      return (childNode and #paths > 0) and childNode:reveal_paths(paths) or childNode
     else
-      return self:baseRevealPaths(paths)
+      return self:base_reveal_paths(paths)
     end
   elseif kind == NodeKind.Package and self._hierarchicalPackageNode then
     local hierarchicalNodeData = paths[1]
-    if hierarchicalNodeData:getName() == self._nodeData:getName() then
+    if hierarchicalNodeData:get_name() == self._nodeData:get_name() then
       table.remove(paths, 1)
-      return self:baseRevealPaths(paths)
+      return self:base_reveal_paths(paths)
     else
       ---@type DataNode[]
-      local children = self:getChildren()
+      local children = self:get_children()
       ---@type DataNode[]?
       local childNode = vim.tbl_filter(function(child)
-        return vim.startswith(hierarchicalNodeData:getName(), child._nodeData:getName() .. ".")
-          or hierarchicalNodeData:getName() == child._nodeData:getName()
+        return vim.startswith(hierarchicalNodeData:get_name(), child._nodeData:get_name() .. ".")
+          or hierarchicalNodeData:get_name() == child._nodeData:get_name()
       end, children)
       ---@type DataNode?
       childNode = (childNode and #childNode > 0) and childNode[1] or nil
-      return (childNode and #paths > 0) and childNode:revealPaths(paths) or nil
+      return (childNode and #paths > 0) and childNode:reveal_paths(paths) or nil
     end
   else
-    return self:baseRevealPaths(paths)
+    return self:base_reveal_paths(paths)
   end
 end
 
-local function uniqBy(arr, fn)
+local function uniq_by(arr, fn)
   local seen = {}
   local result = {}
   for _, value in ipairs(arr) do
@@ -420,43 +355,41 @@ local function uniqBy(arr, fn)
   return result
 end
 ---@return ExplorerNode[]
-function DataNode:getChildren()
+function DataNode:get_children()
   if self:kind() == NodeKind.Package then
-    local data = self:loadData()
+    local data = self:load_data()
     if data then
       if self._nodeData.children then
         for _, child in ipairs(data) do
           table.insert(self._nodeData.children, child)
         end
-        self._nodeData.children = uniqBy(self._nodeData.children, function(child)
-          return child:getPath() .. child:getName()
+        self._nodeData.children = uniq_by(self._nodeData.children, function(child)
+          return (child:get_path() or "") .. "/" .. child:get_name()
         end)
       else
         self._nodeData.children = data
       end
-      self._childrenNodes = self:createChildNodeList() or {}
+      self._childrenNodes = self:create_child_node_list() or {}
       self:sort()
     end
     return self._childrenNodes
   else
     if not self._nodeData.children then
-      local data = self:loadData()
+      local data = self:load_data()
       self._nodeData.children = data
-      self._childrenNodes = self:createChildNodeList() or {}
+      self._childrenNodes = self:create_child_node_list() or {}
       self:sort()
     end
     return self._childrenNodes
   end
 end
 
-M.DataNode = DataNode
-
----@param nodeData INodeData
+---@param nodeData NodeData
 ---@param parent DataNode?
 ---@param project DataNode?
 ---@param rootNode DataNode?
-M.createNode = function(nodeData, parent, project, rootNode)
-  local kind = nodeData:getKind()
+function DataNode.create(nodeData, parent, project, rootNode)
+  local kind = nodeData:get_kind()
   if kind == NodeKind.Workspace then
     return DataNode:new(nodeData, parent, project, rootNode)
   elseif kind == NodeKind.Project then
@@ -473,7 +406,7 @@ M.createNode = function(nodeData, parent, project, rootNode)
       return nil
     end
     local data = DataNode:new(nodeData, parent, project, rootNode)
-    if M.isHierarchicalView then
+    if is_hierarchical_view() then
       data._hierarchicalPackageRootNode = true
     end
     return data
@@ -483,12 +416,12 @@ M.createNode = function(nodeData, parent, project, rootNode)
       return nil
     end
     local data = DataNode:new(nodeData, parent, project, rootNode)
-    if M.isHierarchicalView then
+    if is_hierarchical_view() then
       data._hierarchicalPackageNode = true
     end
     return data
   elseif kind == NodeKind.PrimaryType then
-    if nodeData:getMetaData() and nodeData:getMetaData()[M.K_TYPE_KIND] then
+    if nodeData:get_meta_data() and nodeData:get_meta_data()[enums.K_TYPE_KIND] then
       if not parent then
         vim.notify("Primary type node must have parent", vim.log.levels.ERROR)
         return nil
@@ -510,28 +443,30 @@ M.createNode = function(nodeData, parent, project, rootNode)
   end
 end
 
-function DataNode:isUnmanagedFolder()
-  local natureIds = self._nodeData:getMetaData() and self._nodeData:getMetaData()[M.NATURE_ID] or {}
+function DataNode:is_unmanaged_folder()
+  local natureIds = self._nodeData:get_meta_data() and self._nodeData:get_meta_data()[enums.NATURE_ID] or {}
   for _, natureId in ipairs(natureIds) do
-    if natureId == M.NatureId.UnmanagedFolder then
+    if natureId == enums.NatureId.UnmanagedFolder then
       return true
     end
   end
   return false
 end
 
-function DataNode:getContainerType()
-  local containerPath = self._nodeData:getPath() or ""
-  if containerPath.startsWith(M.ContainerPath.JRE) then
-    return M.ContainerType.JRE
-  elseif containerPath.startsWith(M.ContainerPath.Maven) then
-    return M.ContainerType.Maven
-  elseif containerPath.startsWith(M.ContainerPath.Gradle) then
-    return M.ContainerType.Gradle
-  elseif containerPath.startsWith(M.ContainerPath.ReferencedLibrary) and self._project:isUnmanagedFolder() then
-    return M.ContainerType.ReferencedLibrary
+function DataNode:get_container_type()
+  local containerPath = self._nodeData:get_path() or ""
+  if vim.startswith(containerPath, enums.ContainerPath.JRE) then
+    return enums.ContainerType.JRE
+  elseif vim.startswith(containerPath, enums.ContainerPath.Maven) then
+    return enums.ContainerType.Maven
+  elseif vim.startswith(containerPath, enums.ContainerPath.Gradle) then
+    return enums.ContainerType.Gradle
+  elseif
+    vim.startswith(containerPath, enums.ContainerPath.ReferencedLibrary) and self._project:is_unmanaged_folder()
+  then
+    return enums.ContainerType.ReferencedLibrary
   end
-  return M.ContainerType.Unknown
+  return enums.ContainerType.Unknown
 end
 
 function DataNode:description()
@@ -542,7 +477,7 @@ function DataNode:command()
 end
 
 ---@return boolean
-function DataNode:hasChildren()
+function DataNode:has_children()
   local kind = self:kind()
   if
     kind == NodeKind.CompilationUnit
@@ -556,76 +491,22 @@ function DataNode:hasChildren()
 end
 
 ---@return TreeItemCollapsibleState
-function DataNode:collapsibleState()
+function DataNode:collapsible_state()
   if not self._collapsibleState then
-    if self:hasChildren() then
-      self._collapsibleState = M.TreeItemCollapsibleState.Collapsed
+    if self:has_children() then
+      self._collapsibleState = CollapsibleState.Collapsed
     end
   end
   return self._collapsibleState
 end
 
-function TreeItem:collapsibleState()
-  return self.data:collapsibleState()
-end
-
----@return boolean
-function TreeItem:is_foldable()
-  return self:collapsibleState() == M.TreeItemCollapsibleState.Collapsed
-    or self:collapsibleState() == M.TreeItemCollapsibleState.Expanded
-end
----@return boolean
-function TreeItem:is_expanded()
-  return self:collapsibleState() == M.TreeItemCollapsibleState.Expanded
-end
----@return boolean
-function TreeItem:is_collapsed()
-  return self:collapsibleState() == M.TreeItemCollapsibleState.Collapsed
-end
-
-function TreeItem:expanded()
-  if not self:is_foldable() then
-    return
-  end
-  if self:is_expanded() then
-    return
-  end
-  self.data._collapsibleState = M.TreeItemCollapsibleState.Expanded
-  self.data:getChildren()
-end
-
-function TreeItem:collapsed()
-  if not self:is_foldable() then
-    return
-  end
-  if self:is_collapsed() then
-    return
-  end
-  self.data._collapsibleState = M.TreeItemCollapsibleState.Collapsed
-end
-
-function TreeItem:foldToggle()
-  if self:is_expanded() then
-    self:collapsed()
-  else
-    self:expanded()
-  end
-end
-
----是否是文件可以打开
-function TreeItem:canOpen()
-  local kind = self.data:kind()
-  return kind == NodeKind.PrimaryType or kind == NodeKind.ClassFile or kind == NodeKind.File
-end
-
-function DataNode:getTreeItem()
-  local item = TreeItem:new()
-  item.label = self._nodeData:getDisplayName() or self._nodeData:getName()
+function DataNode:get_tree_item()
+  local item = TreeItem:new(self)
+  item.label = self._nodeData:get_display_name() or self._nodeData:get_name()
   item.description = self:description()
   -- item.icon = self:icon()
   item.command = self:command()
-  item.data = self
-  if self._nodeData:getUri() then
+  if self._nodeData:get_uri() then
     local kind = self:kind()
     if
       kind == NodeKind.Project
@@ -637,10 +518,10 @@ function DataNode:getTreeItem()
       or kind == NodeKind.Folder
       or kind == NodeKind.File
     then
-      item.resourceUri = self._nodeData:getUri()
+      item.resourceUri = self._nodeData:get_uri()
     end
   end
   return item
 end
 
-return M
+return DataNode

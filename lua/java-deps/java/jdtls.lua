@@ -1,11 +1,11 @@
-local lsp_command = require("java-deps.java.lsp-command")
-local node_data = require("java-deps.java.nodeData")
-local NodeKind = node_data.NodeKind
+local lsp_command = require("java-deps.java.lsp_command")
+local node_data_factory = require("java-deps.java.node_data_factory")
+local NodeKind = require("java-deps.java.enums").NodeKind
 local M = {}
 
 ---@param params string
----@return INodeData[]
-M.getProjects = function(params)
+---@return NodeData[]
+M.get_projects = function(params)
   local err, resp = lsp_command.execute_command({
     command = lsp_command.JAVA_PROJECT_LIST,
     arguments = params,
@@ -14,13 +14,13 @@ M.getProjects = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return node_data.generateNodeList(resp)
+  return node_data_factory.create_list(resp)
 end
 M.root_dir = function()
   return lsp_command.get_client().root_dir
 end
 
-M.getProjectUris = function()
+M.get_project_uris = function()
   local err, resp = lsp_command.execute_command({
     command = lsp_command.GET_ALL_PROJECTS,
   })
@@ -31,8 +31,8 @@ M.getProjectUris = function()
   return resp or {}
 end
 
----@return INodeData[]
-M.getPackageData = function(params)
+---@return NodeData[]
+M.get_package_data = function(params)
   local excludePatterns = nil
   local err, resp = lsp_command.execute_command({
     command = lsp_command.JAVA_GETPACKAGEDATA,
@@ -42,8 +42,8 @@ M.getPackageData = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  ---@type INodeData[]
-  local nodeDatas = node_data.generateNodeList(resp)
+  ---@type NodeData[]
+  local nodeDatas = node_data_factory.create_list(resp)
   -- Filter out non java resources
   if true then
     nodeDatas = vim.tbl_filter(function(data)
@@ -79,8 +79,8 @@ M.getPackageData = function(params)
   return nodeDatas
 end
 
----@return INodeData[]
-M.resolvePath = function(params)
+---@return NodeData[]
+M.resolve_path = function(params)
   local err, resp = lsp_command.execute_command({
     command = lsp_command.JAVA_RESOLVEPATH,
     arguments = params,
@@ -89,6 +89,6 @@ M.resolvePath = function(params)
     vim.notify(err.message or vim.inspect(err), vim.log.levels.WARN)
     return {}
   end
-  return node_data.generateNodeList(resp)
+  return node_data_factory.create_list(resp)
 end
 return M

@@ -1,5 +1,5 @@
 local config = require("java-deps.config")
-local View = require("java-deps.view")
+local View = require("java-deps.views.view")
 local highlight = require("java-deps.highlight")
 -- debug
 vim.g.java_deps = {
@@ -25,7 +25,7 @@ end
 function M.open_outline()
   if not M.view:is_open() then
     M.view:open()
-    M.view:revealPaths()
+    M.view:reveal_paths()
   end
 end
 

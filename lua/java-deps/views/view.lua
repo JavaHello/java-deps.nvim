@@ -1,7 +1,7 @@
 local config = require("java-deps.config")
-local provider = require("java-deps.views.data_provider")
-local writer = require("java-deps.writer")
-local mappings = require("java-deps.mappings")
+local DataProvider = require("java-deps.views.data_provider")
+local writer = require("java-deps.views.writer")
+local mappings = require("java-deps.views.mappings")
 local jdtls = require("java-deps.java.jdtls")
 
 ---@class View
@@ -81,22 +81,22 @@ function View:open()
   self:setup_view()
   mappings.init_mappings(self)
   local uri = vim.uri_from_fname(jdtls.root_dir())
-  self.data_provider = provider.DataProvider:new(uri)
+  self.data_provider = DataProvider:new(uri)
 end
 
-function View:foldToggle()
-  local item = self:cursorNode()
+function View:fold_toggle()
+  local item = self:cursor_node()
   if item then
-    item:foldToggle()
+    item:fold_toggle()
     self:refresh()
-    if item:canOpen() then
+    if item:can_open() then
       self:open_file(item)
     end
   end
 end
 
 ---@return TreeItem?
-function View:cursorNode()
+function View:cursor_node()
   local c = vim.api.nvim_win_get_cursor(self.winnr)
   if self._flatten_tree and self._flatten_tree[c[1]] then
     local item = self._flatten_tree[c[1]]
@@ -105,15 +105,15 @@ function View:cursorNode()
   return self._cursor_item
 end
 
-function View:revealCursor()
-  local idx, item = self.data_provider:findRevealNode(self._flatten_tree)
+function View:reveal_cursor()
+  local idx, item = self.data_provider:find_reveal_node(self._flatten_tree)
   if idx and item then
     vim.api.nvim_win_set_cursor(self.winnr, { idx, 0 })
   end
 end
 
-function View:flattenTree()
-  self._flatten_tree = self.data_provider:flattenTree()
+function View:flatten_tree()
+  self._flatten_tree = self.data_provider:flatten_tree()
 end
 
 function View:_write()
@@ -123,15 +123,15 @@ function View:_write()
 end
 ---refresh the outline window
 function View:refresh()
-  self:flattenTree()
+  self:flatten_tree()
   self:_write()
 end
 
-function View:revealPaths()
+function View:reveal_paths()
   writer.write_outline(self.bufnr, { "Loading..." })
-  self.data_provider:revealPaths(jdtls.resolvePath(vim.uri_from_bufnr(self.code_buf)))
+  self.data_provider:reveal_paths(jdtls.resolve_path(vim.uri_from_bufnr(self.code_buf)))
   self:refresh()
-  self:revealCursor()
+  self:reveal_cursor()
 end
 
 function View:is_open()
@@ -140,13 +140,13 @@ end
 
 ---@param node TreeItem?
 function View:open_file(node)
-  node = node or self:cursorNode()
+  node = node or self:cursor_node()
   if not node then
     return
   end
   -- open_file
   local fname = node.resourceUri
-  if not fname or not node:canOpen() then
+  if not fname or not node:can_open() then
     return
   end
   if vim.startswith(fname, "file:/") or vim.startswith(fname, "jdt:/") then

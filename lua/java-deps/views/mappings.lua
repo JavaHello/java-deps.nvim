@@ -6,7 +6,7 @@ M.init_mappings = function(view)
   vim.keymap.set("n", "h", function() end, { noremap = true, silent = true, buffer = view.bufnr })
   vim.keymap.set("n", "l", function() end, { noremap = true, silent = true, buffer = view.bufnr })
   vim.keymap.set("n", config.options.keymaps.toggle_fold or "o", function()
-    view:foldToggle()
+    view:fold_toggle()
   end, { noremap = true, silent = true, buffer = view.bufnr })
 
   vim.keymap.set("n", config.options.keymaps.close or "q", function()

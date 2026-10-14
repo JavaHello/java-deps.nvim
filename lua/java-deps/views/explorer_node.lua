@@ -1,8 +1,5 @@
 ---@class ExplorerNode
 ---@field _parent? ExplorerNode
-
-local M = {}
-
 local ExplorerNode = {}
 ExplorerNode.__index = ExplorerNode
 
@@ -12,7 +9,7 @@ end
 
 ---@param node ExplorerNode
 ---@param levelToCheck number
-function ExplorerNode:isItselfOrAncestorOf(node, levelToCheck)
+function ExplorerNode:is_itself_or_ancestor_of(node, levelToCheck)
   levelToCheck = levelToCheck or math.huge
   while node and levelToCheck >= 0 do
     if self == node then
@@ -24,5 +21,4 @@ function ExplorerNode:isItselfOrAncestorOf(node, levelToCheck)
   return false
 end
 
-M.ExplorerNode = ExplorerNode
-return M
+return ExplorerNode

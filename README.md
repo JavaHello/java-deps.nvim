@@ -50,6 +50,7 @@
 - `symbols.highlights.default_icon`: 没有单独指定时，图标默认使用的高亮组
 - `symbols.highlights.<分类>.<枚举名>`: 仅覆盖某个图标的高亮组
 - `highlights.LineGuide`: 定义 `JavaDepsLineGuide` 高亮组
+- `hierarchical_view`: 包是否按层级展示，默认 `true`（`com.example.a` 显示为 `com.example` → `a`），设为 `false` 时平铺显示完整包名
 
 目前支持的分类：
 

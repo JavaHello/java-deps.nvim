@@ -1,8 +1,8 @@
 local config = require("java-deps.config")
-local node_data = require("java-deps.java.nodeData")
-local PackageRootKind = require("java-deps.java.IPackageRootNodeData").PackageRootKind
-local NodeKind = node_data.NodeKind
-local TypeKind = node_data.TypeKind
+local enums = require("java-deps.java.enums")
+local NodeKind = enums.NodeKind
+local TypeKind = enums.TypeKind
+local PackageRootKind = enums.PackageRootKind
 local has_devicons, devicons = pcall(require, "nvim-web-devicons")
 
 ---@class Icon
@@ -92,8 +92,8 @@ local function get_devicon_icon(node)
     return {}
   end
 
-  local name = node._nodeData:getName()
-  local path = node._nodeData:getPath()
+  local name = node._nodeData:get_name()
+  local path = node._nodeData:get_path()
   local filename = path or name
   local extension = file_like_extensions[kind]
 
@@ -145,11 +145,11 @@ end
 ---@return Icon
 M.get_icon = function(node)
   local kind = node:kind()
-  if kind == node_data.NodeKind.PrimaryType then
-    return resolve_icon("TypeKind", node:typeKind(), node)
+  if kind == NodeKind.PrimaryType then
+    return resolve_icon("TypeKind", node:type_kind(), node)
   end
-  if kind == node_data.NodeKind.PackageRoot and node._nodeData.getEntryKind then
-    local entry_kind = node._nodeData:getEntryKind()
+  if kind == NodeKind.PackageRoot then
+    local entry_kind = node._nodeData:get_entry_kind()
     local entry_icon = resolve_icon("EntryKind", entry_kind, node)
     if entry_icon.icon ~= nil then
       return entry_icon

@@ -1,4 +1,4 @@
-local parser = require("java-deps.parser")
+local parser = require("java-deps.views.parser")
 local highlight = require("java-deps.highlight")
 
 local M = {}
